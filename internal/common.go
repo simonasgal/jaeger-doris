@@ -92,9 +92,9 @@ type otelEvent struct {
 	Attributes map[string]any `json:"attributes"`
 }
 
-func recordToSpan(ctx context.Context, _ *Config, record map[string]string) (*model.Span, error) {
+func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*model.Span, error) {
 	logger := LoggerFromContext(ctx)
-	location := time.Local
+	location := cfg.Doris.Location
 
 	span := &model.Span{}
 
@@ -176,7 +176,7 @@ func recordToSpan(ctx context.Context, _ *Config, record map[string]string) (*mo
 	if !ok {
 		return nil, fmt.Errorf("invalid timestamp")
 	}
-	startTime, err := time.ParseInLocation(timeFormat, startTimeString, location) // TODO timezone
+	startTime, err := time.ParseInLocation(timeFormat, startTimeString, location)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func recordToSpan(ctx context.Context, _ *Config, record map[string]string) (*mo
 			logger.Warn("failed to unmarshal events", zap.Error(err))
 		} else {
 			for _, event := range events {
-				timestamp, err := time.ParseInLocation(timeFormat, event.Timestamp, location) // TODO timezone
+				timestamp, err := time.ParseInLocation(timeFormat, event.Timestamp, location)
 				if err != nil {
 					logger.Warn("failed to parse timestamp of event", zap.Error(err))
 					continue

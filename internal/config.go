@@ -1,6 +1,9 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Config struct {
 	Service *ServiceConfig
@@ -21,6 +24,8 @@ type DorisConfig struct {
 	Database  string
 	TableName string
 	TimeZone  string
+
+	Location *time.Location
 }
 
 func NewDefaultConfig() *Config {
@@ -38,6 +43,7 @@ func NewDefaultConfig() *Config {
 			Database:  "otel2",
 			TableName: "traces",
 			TimeZone:  "Asia/Shanghai",
+			Location:  time.Local,
 		},
 	}
 }

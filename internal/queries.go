@@ -67,7 +67,7 @@ func queryFindTraces(tableName string, traceIDs []string) string {
 	)
 }
 
-func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters) string {
+func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, location *time.Location) string {
 	tags := make(map[string]string, len(param.Tags))
 	for k, v := range param.Tags {
 		tags[k] = v
@@ -103,7 +103,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters) 
 		predicates = append(predicates, fmt.Sprintf(
 			`%s >= '%s'`,
 			SpanAttributeStartTime,
-			param.StartTimeMin.In(time.Local).Format(timeFormat), // TODO timezone
+			param.StartTimeMin.In(location).Format(timeFormat),
 		))
 	}
 
@@ -111,7 +111,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters) 
 		predicates = append(predicates, fmt.Sprintf(
 			`%s <= '%s'`,
 			SpanAttributeStartTime,
-			param.StartTimeMax.In(time.Local).Format(timeFormat), // TODO timezone
+			param.StartTimeMax.In(location).Format(timeFormat),
 		))
 	}
 

@@ -39,7 +39,7 @@ func (dr *dorisReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mo
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryGetTrace(dr.cfg.Doris.TableFullName(), traceID.String()), f)
+	err := executeQuery(ctx, dr.db, dr.cfg, queryGetTrace(dr.cfg.Doris.TableFullName(), traceIDToString(traceID)), f)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryFindTraceIDs(dr.cfg.Doris.TableFullName(), query), f)
+	err := executeQuery(ctx, dr.db, dr.cfg, queryFindTraceIDs(dr.cfg.Doris.TableFullName(), query, dr.cfg.Doris.Location), f)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (dr *dorisReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQ
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryFindTraceIDs(dr.cfg.Doris.TableFullName(), query), f)
+	err := executeQuery(ctx, dr.db, dr.cfg, queryFindTraceIDs(dr.cfg.Doris.TableFullName(), query, dr.cfg.Doris.Location), f)
 	if err != nil {
 		return nil, err
 	}
