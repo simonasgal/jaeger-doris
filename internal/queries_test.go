@@ -75,7 +75,7 @@ func TestQueryFindTraceIDs(t *testing.T) {
 	sort.Strings(middle_list)
 	last := ` GROUP BY trace_id ORDER BY t DESC LIMIT 10`
 
-	realQuery := queryFindTraceIDs(tableName, param)
+	realQuery := queryFindTraceIDs(tableName, param, time.Local)
 	fmt.Println(realQuery)
 	require.Equal(t, first, realQuery[:len(first)])
 	require.Equal(t, last, realQuery[len(realQuery)-len(last):])
