@@ -24,7 +24,7 @@ type DorisStorage struct {
 func NewDorisStorage(ctx context.Context, cfg *Config) (*DorisStorage, error) {
 	logger := LoggerFromContext(ctx)
 
-	dsn := "admin:admin@tcp(127.0.0.1:9030)/mysql" // TODO configurable
+	dsn := cfg.Doris.DSN()
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

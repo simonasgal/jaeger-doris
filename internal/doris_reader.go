@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/jaegertracing/jaeger/model"
@@ -38,7 +39,7 @@ func (dr *dorisReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mo
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryGetTrace("otel2.traces", traceID.String()), f) // TODO: table name
+	err := executeQuery(ctx, dr.db, dr.cfg, queryGetTrace(dr.cfg.Doris.TableFullName(), traceID.String()), f)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func (dr *dorisReader) GetServices(ctx context.Context) ([]string, error) {
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryGetServices("otel2.traces"), f) // TODO: table name
+	err := executeQuery(ctx, dr.db, dr.cfg, queryGetServices(dr.cfg.Doris.TableFullName()), f)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func (dr *dorisReader) GetOperations(ctx context.Context, query spanstore.Operat
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryGetOperations("otel2.traces", query), f) // TODO: table name
+	err := executeQuery(ctx, dr.db, dr.cfg, queryGetOperations(dr.cfg.Doris.TableFullName(), query), f)
 	if err != nil {
 		return nil, err
 	}
@@ -93,13 +94,77 @@ func (dr *dorisReader) GetOperations(ctx context.Context, query spanstore.Operat
 }
 
 func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*model.Trace, error) {
-	// TODO
-	return nil, nil
+	traceIDs := make([]string, 0)
+	f := func(ctx context.Context, cfg *Config, record map[string]string) error {
+		traceID, ok := record[SpanAttributeTraceID]
+		if !ok || traceID == "" {
+			return fmt.Errorf("invalid trace_id")
+		}
+		traceIDs = append(traceIDs, traceID)
+		return nil
+	}
+
+	err := executeQuery(ctx, dr.db, dr.cfg, queryFindTraceIDs(dr.cfg.Doris.TableFullName(), query), f)
+	if err != nil {
+		return nil, err
+	}
+
+	traces := make([]*model.Trace, 0, len(traceIDs))
+	if len(traceIDs) == 0 {
+		return traces, nil
+	}
+
+	traceMap := make(map[string]*model.Trace)
+	for _, traceID := range traceIDs {
+		traceMap[traceID] = &model.Trace{
+			Spans: make([]*model.Span, 0),
+		}
+	}
+
+	f = func(ctx context.Context, cfg *Config, record map[string]string) error {
+		span, err := recordToSpan(ctx, cfg, record)
+		if err != nil {
+			dr.logger.Warn("Failed to convert record to span", zap.Error(err))
+		} else {
+			traceIDString := record[SpanAttributeTraceID]
+			traceMap[traceIDString].Spans = append(traceMap[traceIDString].Spans, span)
+		}
+
+		return nil
+	}
+
+	err = executeQuery(ctx, dr.db, dr.cfg, queryFindTraces(dr.cfg.Doris.TableFullName(), traceIDs), f)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, trace := range traceMap {
+		if len(trace.Spans) > 0 {
+			traces = append(traces, trace)
+		}
+	}
+
+	return traces, nil
 }
 
 func (dr *dorisReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]model.TraceID, error) {
-	// TODO
-	return nil, nil
+	var traceIDs []model.TraceID
+
+	f := func(ctx context.Context, cfg *Config, record map[string]string) error {
+		traceID, err := model.TraceIDFromString(record[SpanAttributeTraceID])
+		if err != nil {
+			return err
+		}
+		traceIDs = append(traceIDs, traceID)
+		return nil
+	}
+
+	err := executeQuery(ctx, dr.db, dr.cfg, queryFindTraceIDs(dr.cfg.Doris.TableFullName(), query), f)
+	if err != nil {
+		return nil, err
+	}
+
+	return traceIDs, nil
 }
 
 type dorisDependencyReader struct {

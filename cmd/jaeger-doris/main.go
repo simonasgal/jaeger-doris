@@ -22,7 +22,7 @@ func main() {
 	ctx := context.Background()
 	ctx = contextWithStandardSignals(ctx)
 
-	cfg := &internal.Config{}
+	cfg := internal.NewDefaultConfig()
 
 	logger, err := initLogger(cfg)
 	if err != nil {
@@ -36,7 +36,7 @@ func main() {
 	}
 }
 
-func initLogger(_ *internal.Config) (*zap.Logger, error) {
+func initLogger(cfg *internal.Config) (*zap.Logger, error) {
 	var loggerConfig zap.Config
 	if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
 		loggerConfig = zap.NewDevelopmentConfig()
@@ -44,7 +44,7 @@ func initLogger(_ *internal.Config) (*zap.Logger, error) {
 		loggerConfig = zap.NewProductionConfig()
 	}
 	var err error
-	loggerConfig.Level, err = zap.ParseAtomicLevel("debug") // TODO: configurable
+	loggerConfig.Level, err = zap.ParseAtomicLevel(cfg.Service.LogLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 		return err
 	}
 
-	grpcListener, err := net.Listen("tcp", "localhost:5000") // TODO: configurable
+	grpcListener, err := net.Listen("tcp", cfg.Service.Address())
 	if err != nil {
 		return err
 	}

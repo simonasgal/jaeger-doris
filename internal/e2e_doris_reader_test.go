@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jaegertracing/jaeger/model"
@@ -85,4 +86,45 @@ func TestGetOperations(t *testing.T) {
 	require.Equal(t, 1, len(operations))
 	require.Equal(t, "call db", operations[0].Name)
 	require.Equal(t, "internal", operations[0].SpanKind)
+}
+
+var ts = time.Date(2024, 1, 1, 1, 1, 1, 1000, time.Local)
+var param = &spanstore.TraceQueryParameters{
+	ServiceName:   "service_name",
+	OperationName: "",
+	Tags: map[string]string{
+		"a": "1",
+		"k": "v",
+	},
+	StartTimeMin: ts,
+	StartTimeMax: ts.Add(300 * 24 * time.Hour),
+	DurationMin:  time.Microsecond,
+	DurationMax:  time.Minute,
+	NumTraces:    10,
+}
+
+func TestFindTraces(t *testing.T) {
+	ctx, err := initContext()
+	require.NoError(t, err)
+
+	dorisReader, err := getTestReader(ctx)
+	require.NoError(t, err)
+
+	traces, err := dorisReader.FindTraces(ctx, param)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(traces))
+	require.Equal(t, 2, len(traces[0].Spans))
+	require.Equal(t, 2, len(traces[1].Spans))
+}
+
+func TestFindTraceIDs(t *testing.T) {
+	ctx, err := initContext()
+	require.NoError(t, err)
+
+	dorisReader, err := getTestReader(ctx)
+	require.NoError(t, err)
+
+	traces, err := dorisReader.FindTraceIDs(ctx, param)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(traces))
 }

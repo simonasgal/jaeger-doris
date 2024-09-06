@@ -1,7 +1,11 @@
 package internal
 
 import (
+	"fmt"
+	"sort"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 	"github.com/stretchr/testify/require"
@@ -33,3 +37,50 @@ func TestQueryGetOperations(t *testing.T) {
 	require.Equal(t, want, queryGetOperations(tableName, param))
 }
 
+func TestQueryFindTraces(t *testing.T) {
+	tableName := "otel2.traces"
+	traceIDs := []string{"01020301000000000000000000000000", "01020301000000000000000000000001"}
+	want := `SELECT * FROM otel2.traces WHERE trace_id IN ('01020301000000000000000000000000','01020301000000000000000000000001')`
+	require.Equal(t, want, queryFindTraces(tableName, traceIDs))
+}
+
+func TestQueryFindTraceIDs(t *testing.T) {
+	ts := time.Date(2024, 1, 1, 1, 1, 1, 1000, time.Local)
+	tableName := "otel2.traces"
+	param := &spanstore.TraceQueryParameters{
+		ServiceName:   "test-service",
+		OperationName: "test-operation",
+		Tags: map[string]string{
+			"key1": "value1",
+			"key2": "value2",
+		},
+		StartTimeMin: ts,
+		StartTimeMax: ts.Add(time.Hour),
+		DurationMin:  time.Second,
+		DurationMax:  time.Minute,
+		NumTraces:    10,
+	}
+
+	first := `SELECT trace_id, MIN(timestamp) AS t FROM otel2.traces WHERE `
+	middle_list := []string{
+		"service_name = 'test-service'",
+		"span_name = 'test-operation'",
+		"span_attributes['key1'] = 'value1'",
+		"span_attributes['key2'] = 'value2'",
+		"timestamp >= '2024-01-01 01:01:01.000001'",
+		"timestamp <= '2024-01-01 02:01:01.000001'",
+		"duration >= 1000000",
+		"duration <= 60000000",
+	}
+	sort.Strings(middle_list)
+	last := ` GROUP BY trace_id ORDER BY t DESC LIMIT 10`
+
+	realQuery := queryFindTraceIDs(tableName, param)
+	fmt.Println(realQuery)
+	require.Equal(t, first, realQuery[:len(first)])
+	require.Equal(t, last, realQuery[len(realQuery)-len(last):])
+
+	middle := strings.Split(realQuery[len(first):len(realQuery)-len(last)], " AND ")
+	sort.Strings(middle)
+	require.Equal(t, middle_list, middle)
+}
