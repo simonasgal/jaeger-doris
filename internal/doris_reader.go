@@ -95,6 +95,7 @@ func (dr *dorisReader) GetOperations(ctx context.Context, query spanstore.Operat
 
 func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*model.Trace, error) {
 	traceIDs := make([]string, 0)
+
 	f := func(ctx context.Context, cfg *Config, record map[string]string) error {
 		traceID, ok := record[SpanAttributeTraceID]
 		if !ok || traceID == "" {
@@ -148,7 +149,7 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 }
 
 func (dr *dorisReader) FindTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]model.TraceID, error) {
-	var traceIDs []model.TraceID
+	traceIDs := make([]model.TraceID, 0)
 
 	f := func(ctx context.Context, cfg *Config, record map[string]string) error {
 		traceID, err := model.TraceIDFromString(record[SpanAttributeTraceID])
