@@ -1,10 +1,10 @@
 package internal
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/jaegertracing/jaeger/model"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTraceIDToString(t *testing.T) {
@@ -13,16 +13,5 @@ func TestTraceIDToString(t *testing.T) {
 		Low:  0,
 	}
 
-	fmt.Println(traceIDToString(traceID))
-}
-
-func TestMap(t *testing.T) {
-	m := make(map[string]any)
-	a := m["key"]
-	fmt.Println(a == nil)
-	s, err := a.(string)
-	if !err {
-		fmt.Println("error")
-	}
-	fmt.Println(s)
+	require.Equal(t, "00000000000000000000000000000000", traceIDToString(traceID))
 }

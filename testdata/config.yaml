@@ -1,0 +1,12 @@
+service:
+  ip: 127.0.0.1
+  port: 5000
+  log_level: DEBUG
+  timeout_second: 60
+doris:
+  endpoint: 127.0.0.1:9030
+  username: admin
+  password: admin
+  database: otel2
+  table_name: traces
+  timezone: Asia/Shanghai

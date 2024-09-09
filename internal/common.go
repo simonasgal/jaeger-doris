@@ -25,8 +25,11 @@ func traceIDToString(traceID model.TraceID) string {
 type mappingFunc func(ctx context.Context, cfg *Config, record map[string]string) error
 
 func executeQuery(ctx context.Context, db *sql.DB, cfg *Config, query string, f mappingFunc) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(cfg.Service.TimeOutSecond)*time.Second)
-	defer cancel()
+	if cfg.Service.TimeoutSecond > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(cfg.Service.TimeoutSecond)*time.Second)
+		defer cancel()
+	}
 
 	logger := LoggerFromContext(ctx)
 

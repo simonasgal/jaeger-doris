@@ -78,5 +78,5 @@ func (ds *DorisStorage) DependencyReader() dependencystore.Reader {
 }
 
 func (ds *DorisStorage) Close() error {
-	return nil
+	return ds.db.Close()
 }

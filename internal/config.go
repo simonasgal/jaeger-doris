@@ -1,51 +1,127 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Service *ServiceConfig
-	Doris   *DorisConfig
+	Service *ServiceConfig `yaml:"service"`
+	Doris   *DorisConfig   `yaml:"doris"`
 }
 
 type ServiceConfig struct {
-	IP            string
-	Port          int32
-	LogLevel      string
-	TimeOutSecond int64
+	IP            string `yaml:"ip"`
+	Port          int32  `yaml:"port"`
+	LogLevel      string `yaml:"log_level" mapstructure:"log_level"`
+	TimeoutSecond int64  `yaml:"timeout_second" mapstructure:"timeout_second"`
 }
 
 type DorisConfig struct {
-	Endpoint  string
-	Username  string
-	Password  string
-	Database  string
-	TableName string
-	TimeZone  string
+	Endpoint  string `yaml:"endpoint"`
+	Username  string `yaml:"username"`
+	Password  string `yaml:"password"`
+	Database  string `yaml:"database"`
+	TableName string `yaml:"table_name" mapstructure:"table_name"`
+	TimeZone  string `yaml:"timezone"`
 
 	Location *time.Location
 }
 
-func NewDefaultConfig() *Config {
-	return &Config{
-		Service: &ServiceConfig{
-			IP:            "localhost",
-			Port:          5000,
-			LogLevel:      "debug",
-			TimeOutSecond: 60,
-		},
-		Doris: &DorisConfig{
-			Endpoint:  "localhost:9030",
-			Username:  "admin",
-			Password:  "admin",
-			Database:  "otel2",
-			TableName: "traces",
-			TimeZone:  "Asia/Shanghai",
-			Location:  time.Local,
-		},
+const (
+	defaultServiceIP            = "localhost"
+	defaultServicePort          = 5000
+	defaultServiceLogLevel      = "info"
+	defaultServiceTimeoutSecond = 60
+
+	defaultDorisDatabase  = "otel"
+	defaultDorisTableName = "otel_traces"
+)
+
+func (c *Config) Init(configPath string) error {
+	vip := viper.New()
+	vip.SetConfigFile(configPath)
+
+	err := vip.ReadInConfig()
+	if err != nil {
+		return err
 	}
+
+	err = vip.Unmarshal(c)
+	if err != nil {
+		return err
+	}
+
+	if c.Service == nil {
+		c.Service = &ServiceConfig{}
+	}
+
+	if c.Doris == nil {
+		c.Doris = &DorisConfig{}
+	}
+
+	return nil
+}
+
+func (c *Config) Validate() error {
+	var err error
+	if c.Service.IP == "" {
+		c.Service.IP = defaultServiceIP
+	}
+
+	if c.Service.Port == 0 {
+		c.Service.Port = defaultServicePort
+	}
+
+	if c.Service.LogLevel == "" {
+		c.Service.LogLevel = defaultServiceLogLevel
+	}
+
+	if c.Service.TimeoutSecond < 0 {
+		err = errors.Join(err, errors.New("service.timeout_second must be greater than or equal to 0"))
+	}
+
+	if c.Doris.Endpoint == "" {
+		err = errors.Join(err, errors.New("doris.endpoint must be specified"))
+	}
+
+	if c.Doris.Username == "" {
+		err = errors.Join(err, errors.New("doris.username must be specified"))
+	}
+
+	if c.Doris.Database == "" {
+		c.Doris.Database = defaultDorisDatabase
+	}
+
+	if c.Doris.TableName == "" {
+		c.Doris.TableName = defaultDorisTableName
+	}
+
+	if c.Doris.TimeZone == "" {
+		c.Doris.Location = time.Local
+	} else {
+		location, errT := time.LoadLocation(c.Doris.TimeZone)
+		if errT != nil {
+			err = errors.Join(err, errors.New("invalid timezone"))
+		} else {
+			c.Doris.Location = location
+		}
+	}
+
+	// Preventing SQL Injection Attacks
+	re := regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	if !re.MatchString(c.Doris.Database) {
+		err = errors.Join(err, errors.New("doris.database must be alphanumeric and underscore"))
+	}
+	if !re.MatchString(c.Doris.TableName) {
+		err = errors.Join(err, errors.New("doris.table_name must be alphanumeric and underscore"))
+	}
+
+	return err
 }
 
 func (c *ServiceConfig) Address() string {

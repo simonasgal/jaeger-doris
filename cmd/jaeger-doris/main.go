@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/signal"
@@ -12,27 +13,51 @@ import (
 	"github.com/jaegertracing/jaeger/plugin/storage/grpc/shared"
 	"github.com/joker-star-l/jaeger-doris/internal"
 	"github.com/mattn/go-isatty"
+	"github.com/spf13/cobra"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/reflection"
 )
 
+var configPath string
+
+const serviceName = "jaeger-doris"
+
 func main() {
-	ctx := context.Background()
-	ctx = contextWithStandardSignals(ctx)
+	cfg := &internal.Config{}
+	command := &cobra.Command{
+		Use:   serviceName,
+		Args:  cobra.NoArgs,
+		Short: serviceName + " is the Jaeger-doris gRPC remote storage service",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			err := cfg.Init(configPath)
+			if err != nil {
+				return fmt.Errorf("failed to get config: %w", err)
+			}
 
-	cfg := internal.NewDefaultConfig()
+			err = cfg.Validate()
+			if err != nil {
+				return fmt.Errorf("failed to validate config: %w", err)
+			}
 
-	logger, err := initLogger(cfg)
-	if err != nil {
-		panic(err)
+			logger, err := initLogger(cfg)
+			if err != nil {
+				return fmt.Errorf("failed to start logger: %w", err)
+			}
+
+			ctx := internal.LoggerWithContext(cmd.Context(), logger)
+			return run(ctx, cfg)
+		},
 	}
-	ctx = internal.LoggerWithContext(ctx, logger)
+	command.Flags().StringVarP(&configPath, "config", "c", "", "configuration file")
 
-	err = run(ctx, cfg)
-	if err != nil {
-		panic(err)
+	ctx := contextWithStandardSignals(context.Background())
+	if err := command.ExecuteContext(ctx); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			os.Exit(1)
+		}
 	}
 }
 
@@ -67,6 +92,15 @@ func contextWithStandardSignals(ctx context.Context) context.Context {
 	return ctx
 }
 
+type contextServerStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (ss *contextServerStream) Context() context.Context {
+	return ss.ctx
+}
+
 func run(ctx context.Context, cfg *internal.Config) error {
 	backend, err := internal.NewDorisStorage(ctx, cfg)
 	if err != nil {
@@ -74,8 +108,32 @@ func run(ctx context.Context, cfg *internal.Config) error {
 	}
 	defer backend.Close()
 
+	logger := internal.LoggerFromContext(ctx)
+
 	grpcHandler := shared.NewGRPCHandlerWithPlugins(backend, nil, nil)
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+			ctx = internal.LoggerWithContext(ctx, logger)
+			res, err := handler(ctx, req)
+			if err != nil && err != context.Canceled {
+				logger.Error("gRPC interceptor", zap.Error(err))
+			}
+			return res, err
+		}),
+		grpc.StreamInterceptor(func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+			ctx := internal.LoggerWithContext(stream.Context(), logger)
+			stream = &contextServerStream{
+				ServerStream: stream,
+				ctx:          ctx,
+			}
+			err := handler(srv, stream)
+			if err != nil && err != context.Canceled {
+				logger.Error("gRPC interceptor", zap.Error(err))
+			}
+			return err
+		}),
+	)
+
 	reflection.Register(grpcServer)
 	healthServer := health.NewServer()
 	err = grpcHandler.Register(grpcServer, healthServer)
@@ -87,7 +145,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 	if err != nil {
 		return err
 	}
-	defer grpcListener.Close()
+	defer func() { _ = grpcListener.Close() }()
 
 	errCh := make(chan error)
 	go func() {
@@ -95,12 +153,16 @@ func run(ctx context.Context, cfg *internal.Config) error {
 		errCh <- grpcServer.Serve(grpcListener)
 	}()
 
+	logger.Info("start")
 	<-ctx.Done()
+	logger.Info("exiting")
+
 	grpcServer.GracefulStop()
 
 	select {
 	case err = <-errCh:
 	case <-time.After(5 * time.Second):
+		logger.Warn("the gRPC server is being stubborn, so forcing it to stop")
 		grpcServer.Stop()
 		select {
 		case err = <-errCh:
@@ -109,5 +171,6 @@ func run(ctx context.Context, cfg *internal.Config) error {
 		}
 	}
 
+	err = multierr.Combine(err, backend.Close())
 	return err
 }
