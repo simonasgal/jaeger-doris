@@ -29,12 +29,12 @@ type DorisConfig struct {
 	TableName string `yaml:"table_name" mapstructure:"table_name"`
 	TimeZone  string `yaml:"timezone"`
 
-	Location *time.Location
+	Location *time.Location `yaml:"-"`
 }
 
 const (
 	defaultServiceIP            = "localhost"
-	defaultServicePort          = 5000
+	defaultServicePort          = 17271
 	defaultServiceLogLevel      = "info"
 	defaultServiceTimeoutSecond = 60
 

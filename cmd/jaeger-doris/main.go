@@ -112,7 +112,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 
 	grpcHandler := shared.NewGRPCHandlerWithPlugins(backend, nil, nil)
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 			ctx = internal.LoggerWithContext(ctx, logger)
 			res, err := handler(ctx, req)
 			if err != nil && err != context.Canceled {
