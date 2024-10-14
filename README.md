@@ -4,7 +4,7 @@ This service enables querying traces stored in Doris, via the Jaeger UI.
 To write traces to Doris, use the [OpenTelemetry Collector, Doris Distribution (still under development)](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/dorisexporter).
 
 <div align="center">
-<img src="pics/dataflow.png" alt="dataflow" style="zoom:15%;"/>
+<img src="pics/dataflow.png" alt="dataflow" style="zoom:15%;" width="200px"/>
 </div>
 
 ## Docker
