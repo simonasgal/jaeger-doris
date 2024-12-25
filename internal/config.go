@@ -15,19 +15,19 @@ type Config struct {
 }
 
 type ServiceConfig struct {
-	IP            string `yaml:"ip"`
-	Port          int32  `yaml:"port"`
+	IP            string `yaml:"ip" mapstructure:"ip"`
+	Port          int32  `yaml:"port" mapstructure:"port"`
 	LogLevel      string `yaml:"log_level" mapstructure:"log_level"`
-	TimeoutSecond int64  `yaml:"timeout_second" mapstructure:"timeout_second"`
+	TimeoutSecond int64  `yaml:"timeout" mapstructure:"timeout"`
 }
 
 type DorisConfig struct {
-	Endpoint  string `yaml:"endpoint"`
-	Username  string `yaml:"username"`
-	Password  string `yaml:"password"`
-	Database  string `yaml:"database"`
+	Endpoint  string `yaml:"endpoint" mapstructure:"endpoint"`
+	Username  string `yaml:"username" mapstructure:"username"`
+	Password  string `yaml:"password" mapstructure:"password"`
+	Database  string `yaml:"database" mapstructure:"database"`
 	TableName string `yaml:"table_name" mapstructure:"table_name"`
-	TimeZone  string `yaml:"timezone"`
+	TimeZone  string `yaml:"timezone" mapstructure:"timezone"` // doris does not handle time zones and needs to be handled manually
 
 	Location *time.Location `yaml:"-"`
 }
@@ -82,7 +82,7 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Service.TimeoutSecond < 0 {
-		err = errors.Join(err, errors.New("service.timeout_second must be greater than or equal to 0"))
+		err = errors.Join(err, errors.New("service.timeout must be greater than or equal to 0"))
 	}
 
 	if c.Doris.Endpoint == "" {

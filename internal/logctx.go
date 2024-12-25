@@ -6,13 +6,15 @@ import (
 	"go.uber.org/zap"
 )
 
-var loggerContext struct{}
+type loggerKey struct{}
+
+var k loggerKey
 
 func LoggerWithContext(ctx context.Context, logger *zap.Logger) context.Context {
-	return context.WithValue(ctx, loggerContext, logger)
+	return context.WithValue(ctx, k, logger)
 }
 
 func LoggerFromContext(ctx context.Context) *zap.Logger {
-	logger, _ := ctx.Value(loggerContext).(*zap.Logger)
+	logger, _ := ctx.Value(k).(*zap.Logger)
 	return logger
 }
