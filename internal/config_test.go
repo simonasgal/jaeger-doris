@@ -20,5 +20,8 @@ func TestConfig_InitAndValidate(t *testing.T) {
 	require.Equal(t, "127.0.0.1:9030", cfg.Doris.Endpoint)
 	require.Equal(t, "otel2", cfg.Doris.Database)
 
+	require.Equal(t, "traces", cfg.Doris.TableName)
+	require.Equal(t, "metrics", cfg.Doris.MetricTableName)
+
 	require.NoError(t, cfg.Validate())
 }

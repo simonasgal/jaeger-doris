@@ -304,6 +304,37 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	return span, nil
 }
 
+func recordToDependencyLink(_ context.Context, _ *Config, record map[string]string) (*model.DependencyLink, error) {
+	dependencyLink := &model.DependencyLink{}
+
+	// Parent
+	parent, ok := record["client"]
+	if !ok {
+		return nil, fmt.Errorf("invalid client")
+	}
+	dependencyLink.Parent = parent
+
+	// Child
+	child, ok := record["server"]
+	if !ok {
+		return nil, fmt.Errorf("invalid server")
+	}
+	dependencyLink.Child = child
+
+	// CallCount
+	callCountString, ok := record["value"]
+	if !ok {
+		return nil, fmt.Errorf("invalid value")
+	}
+	callCount, err := strconv.ParseInt(callCountString, 10, 0)
+	if err != nil {
+		return nil, err
+	}
+	dependencyLink.CallCount = uint64(callCount)
+
+	return dependencyLink, nil
+}
+
 func kvToKeyValue(k string, v any) model.KeyValue {
 	switch vv := v.(type) {
 	case bool:

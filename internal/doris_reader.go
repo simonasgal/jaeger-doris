@@ -174,6 +174,23 @@ type dorisDependencyReader struct {
 }
 
 func (ddr *dorisDependencyReader) GetDependencies(ctx context.Context, endTs time.Time, lookback time.Duration) ([]model.DependencyLink, error) {
-	// TODO
-	return nil, nil
+	var links []model.DependencyLink
+
+	f := func(ctx context.Context, cfg *Config, record map[string]string) error {
+		link, err := recordToDependencyLink(ctx, cfg, record)
+		if err != nil {
+			ddr.logger.Warn("Failed to convert record to dependency link", zap.Error(err))
+		} else {
+			links = append(links, *link)
+		}
+
+		return nil
+	}
+
+	err := executeQuery(ctx, ddr.dr.db, ddr.dr.cfg, queryGetDependencies(ddr.dr.cfg.Doris.MetricSumTableFullName(), endTs, lookback, ddr.dr.cfg.Doris.Location), f)
+	if err != nil {
+		return nil, err
+	}
+
+	return links, nil
 }
