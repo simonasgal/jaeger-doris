@@ -391,6 +391,11 @@ const (
 	SpanProcessAttributeServiceName = "service_name"
 	SpanProcessAttributeTags        = "resource_attributes"
 
+	GraphEdgeTimeStamp = "timestamp"
+	GraphEdgeParent    = "caller_service_name"
+	GraphEdgeChild     = "callee_service_name"
+	GraphEdgeCallCount = "count"
+
 	// TODO reference
 	SpanKindInternal = "SPAN_KIND_INTERNAL"
 	SpanKindServer   = "SPAN_KIND_SERVER"

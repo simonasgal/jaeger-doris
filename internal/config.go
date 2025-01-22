@@ -22,26 +22,27 @@ type ServiceConfig struct {
 }
 
 type DorisConfig struct {
-	Endpoint       string `yaml:"endpoint" mapstructure:"endpoint"`
-	Username       string `yaml:"username" mapstructure:"username"`
-	Password       string `yaml:"password" mapstructure:"password"`
-	Database       string `yaml:"database" mapstructure:"database"`
-	TableName      string `yaml:"table_name" mapstructure:"table_name"`
-	GraphTableName string `yaml:"graph_table_name" mapstructure:"graph_table_name"`
-	TimeZone       string `yaml:"timezone" mapstructure:"timezone"` // doris does not handle time zones and needs to be handled manually
+	Endpoint           string            `yaml:"endpoint" mapstructure:"endpoint"`
+	Username           string            `yaml:"username" mapstructure:"username"`
+	Password           string            `yaml:"password" mapstructure:"password"`
+	Database           string            `yaml:"database" mapstructure:"database"`
+	Table              string            `yaml:"table" mapstructure:"table"`
+	FieldsMapping      map[string]string `yaml:"fields_mapping" mapstructure:"fields_mapping"`
+	GraphTable         string            `yaml:"graph_table" mapstructure:"graph_table"`
+	GraphFieldsMapping map[string]string `yaml:"graph_fields_mapping" mapstructure:"graph_fields_mapping"`
+	TimeZone           string            `yaml:"timezone" mapstructure:"timezone"` // doris does not handle time zones and needs to be handled manually
 
 	Location *time.Location `yaml:"-"`
 }
 
 const (
-	defaultServiceIP            = "localhost"
-	defaultServicePort          = 17271
-	defaultServiceLogLevel      = "info"
-	defaultServiceTimeoutSecond = 60
+	defaultServiceIP       = "localhost"
+	defaultServicePort     = 17271
+	defaultServiceLogLevel = "info"
 
-	defaultDorisDatabase       = "otel"
-	defaultDorisTableName      = "otel_traces"
-	defaultDorisGraphTableName = "otel_traces_graph"
+	defaultDorisDatabase   = "otel"
+	defaultDorisTable      = "otel_traces"
+	defaultDorisGraphTable = "otel_traces_graph"
 )
 
 func (c *Config) Init(configPath string) error {
@@ -99,13 +100,58 @@ func (c *Config) Validate() error {
 		c.Doris.Database = defaultDorisDatabase
 	}
 
-	if c.Doris.TableName == "" {
-		c.Doris.TableName = defaultDorisTableName
+	if c.Doris.Table == "" {
+		c.Doris.Table = defaultDorisTable
 	}
 
-	if c.Doris.GraphTableName == "" {
-		c.Doris.GraphTableName = defaultDorisTableName
+	defaultMapping := map[string]string{
+		SpanProcessAttributeServiceName:     SpanProcessAttributeServiceName,     // service_name
+		SpanAttributeStartTime:              SpanAttributeStartTime,              // timestamp
+		"service_instance_id":               "service_instance_id",               // service_instance_id (unused)
+		SpanAttributeTraceID:                SpanAttributeTraceID,                // trace_id
+		SpanAttributeSpanID:                 SpanAttributeSpanID,                 // span_id
+		"trace_state":                       "trace_state",                       // trace_state (unused)
+		SpanReferenceChildOfAttributeSpanID: SpanReferenceChildOfAttributeSpanID, // parent_span_id
+		SpanAttributeOperationName:          SpanAttributeOperationName,          // span_name
+		SpanTagAttributeSpanKind:            SpanTagAttributeSpanKind,            // span_kind
+		"end_time":                          "end_time",                          // end_time (unused)
+		SpanAttributeDuration:               SpanAttributeDuration,               // duration
+		SpanAttributeTags:                   SpanAttributeTags,                   // span_attributes
+		SpanAttributeLogs:                   SpanAttributeLogs,                   // events
+		SpanAttributeReferencesFollowsFrom:  SpanAttributeReferencesFollowsFrom,  // links
+		SpanTagAttributeStatusDescription:   SpanTagAttributeStatusDescription,   // status_message
+		SpanTagAttributeStatusCode:          SpanTagAttributeStatusCode,          // status_code
+		SpanProcessAttributeTags:            SpanProcessAttributeTags,            // resource_attributes
+		"scope_name":                        "scope_name",                        // scope_name (unused)
+		"scope_version":                     "scope_version",                     // scope_version (unused)
 	}
+
+	if c.Doris.FieldsMapping != nil {
+		for k, v := range c.Doris.FieldsMapping {
+			defaultMapping[k] = v
+		}
+	}
+	c.Doris.FieldsMapping = defaultMapping
+
+	if c.Doris.GraphTable == "" {
+		c.Doris.GraphTable = defaultDorisGraphTable
+	}
+
+	defaultGraphMapping := map[string]string{
+		GraphEdgeTimeStamp:           GraphEdgeTimeStamp,           // timestamp
+		GraphEdgeParent:              GraphEdgeParent,              // caller_service_name
+		"caller_service_instance_id": "caller_service_instance_id", // caller_service_instance_id (unused)
+		GraphEdgeChild:               GraphEdgeChild,               // callee_service_name
+		"callee_service_instance_id": "callee_service_instance_id", // callee_service_instance_id (unused)
+		GraphEdgeCallCount:           GraphEdgeCallCount,           // count
+		"error_count":                "error_count",                // error_count (unused)
+	}
+	if c.Doris.GraphFieldsMapping != nil {
+		for k, v := range c.Doris.GraphFieldsMapping {
+			defaultGraphMapping[k] = v
+		}
+	}
+	c.Doris.GraphFieldsMapping = defaultGraphMapping
 
 	if c.Doris.TimeZone == "" {
 		c.Doris.Location = time.Local
@@ -123,7 +169,7 @@ func (c *Config) Validate() error {
 	if !re.MatchString(c.Doris.Database) {
 		err = errors.Join(err, errors.New("doris.database must be alphanumeric and underscore"))
 	}
-	if !re.MatchString(c.Doris.TableName) {
+	if !re.MatchString(c.Doris.Table) {
 		err = errors.Join(err, errors.New("doris.table_name must be alphanumeric and underscore"))
 	}
 
@@ -139,9 +185,9 @@ func (c *DorisConfig) DSN() string {
 }
 
 func (c *DorisConfig) TableFullName() string {
-	return fmt.Sprintf("%s.%s", c.Database, c.TableName)
+	return fmt.Sprintf("%s.%s", c.Database, c.Table)
 }
 
 func (c *DorisConfig) GraphTableFullName() string {
-	return fmt.Sprintf("%s.%s", c.Database, c.GraphTableName)
+	return fmt.Sprintf("%s.%s", c.Database, c.GraphTable)
 }
