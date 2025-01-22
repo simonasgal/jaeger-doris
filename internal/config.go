@@ -22,13 +22,13 @@ type ServiceConfig struct {
 }
 
 type DorisConfig struct {
-	Endpoint        string `yaml:"endpoint" mapstructure:"endpoint"`
-	Username        string `yaml:"username" mapstructure:"username"`
-	Password        string `yaml:"password" mapstructure:"password"`
-	Database        string `yaml:"database" mapstructure:"database"`
-	TableName       string `yaml:"table_name" mapstructure:"table_name"`
-	MetricTableName string `yaml:"metric_table_name" mapstructure:"metric_table_name"`
-	TimeZone        string `yaml:"timezone" mapstructure:"timezone"` // doris does not handle time zones and needs to be handled manually
+	Endpoint       string `yaml:"endpoint" mapstructure:"endpoint"`
+	Username       string `yaml:"username" mapstructure:"username"`
+	Password       string `yaml:"password" mapstructure:"password"`
+	Database       string `yaml:"database" mapstructure:"database"`
+	TableName      string `yaml:"table_name" mapstructure:"table_name"`
+	GraphTableName string `yaml:"graph_table_name" mapstructure:"graph_table_name"`
+	TimeZone       string `yaml:"timezone" mapstructure:"timezone"` // doris does not handle time zones and needs to be handled manually
 
 	Location *time.Location `yaml:"-"`
 }
@@ -39,9 +39,9 @@ const (
 	defaultServiceLogLevel      = "info"
 	defaultServiceTimeoutSecond = 60
 
-	defaultDorisDatabase        = "otel"
-	defaultDorisTableName       = "otel_traces"
-	defaultDorisMetricTableName = "otel_metrics"
+	defaultDorisDatabase       = "otel"
+	defaultDorisTableName      = "otel_traces"
+	defaultDorisGraphTableName = "otel_traces_graph"
 )
 
 func (c *Config) Init(configPath string) error {
@@ -103,8 +103,8 @@ func (c *Config) Validate() error {
 		c.Doris.TableName = defaultDorisTableName
 	}
 
-	if c.Doris.MetricTableName == "" {
-		c.Doris.MetricTableName = defaultDorisMetricTableName
+	if c.Doris.GraphTableName == "" {
+		c.Doris.GraphTableName = defaultDorisTableName
 	}
 
 	if c.Doris.TimeZone == "" {
@@ -142,6 +142,6 @@ func (c *DorisConfig) TableFullName() string {
 	return fmt.Sprintf("%s.%s", c.Database, c.TableName)
 }
 
-func (c *DorisConfig) MetricSumTableFullName() string {
-	return fmt.Sprintf("%s.%s_sum", c.Database, c.MetricTableName)
+func (c *DorisConfig) GraphTableFullName() string {
+	return fmt.Sprintf("%s.%s", c.Database, c.GraphTableName)
 }

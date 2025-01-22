@@ -158,12 +158,11 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 
 func queryGetDependencies(tableName string, endTs time.Time, lookback time.Duration, location *time.Location) string {
 	template := `select
-	cast(attributes['client'] as string) as client,
-	cast(attributes['server'] as string) as server,
-	cast(max(value) - min(value) as int) as value
+	caller_service_name as client,
+	callee_service_name as server,
+	sum(count) as value
 from %s
-where metric_name = 'traces_service_graph_request_total'
-and timestamp >= '%s'
+where timestamp >= '%s'
 and timestamp <= '%s'
 group by client, server`
 

@@ -86,15 +86,14 @@ func TestQueryFindTraceIDs(t *testing.T) {
 }
 
 func TestQueryGetDependencies(t *testing.T) {
-	tableName := "otel2.metrics_sum"
+	tableName := "otel2.traces_graph"
 	ts := time.Date(2024, 1, 1, 1, 1, 1, 1000, time.Local)
 	want := `select
-	cast(attributes['client'] as string) as client,
-	cast(attributes['server'] as string) as server,
-	cast(max(value) - min(value) as int) as value
-from otel2.metrics_sum
-where metric_name = 'traces_service_graph_request_total'
-and timestamp >= '2024-01-01 00:01:01.000001'
+	caller_service_name as client,
+	callee_service_name as server,
+	sum(count) as value
+from otel2.traces_graph
+where timestamp >= '2024-01-01 00:01:01.000001'
 and timestamp <= '2024-01-01 01:01:01.000001'
 group by client, server`
 	require.Equal(t, want, queryGetDependencies(tableName, ts, time.Hour, time.Local))

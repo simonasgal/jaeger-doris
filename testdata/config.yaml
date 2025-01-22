@@ -9,5 +9,5 @@ doris:
   password: admin
   database: otel2
   table_name: traces
-  metric_table_name: metrics
+  graph_table_name: traces_graph
   timezone: Asia/Shanghai

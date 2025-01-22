@@ -21,7 +21,7 @@ func TestConfig_InitAndValidate(t *testing.T) {
 	require.Equal(t, "otel2", cfg.Doris.Database)
 
 	require.Equal(t, "traces", cfg.Doris.TableName)
-	require.Equal(t, "metrics", cfg.Doris.MetricTableName)
+	require.Equal(t, "traces_graph", cfg.Doris.GraphTableName)
 
 	require.NoError(t, cfg.Validate())
 }

@@ -187,7 +187,7 @@ func (ddr *dorisDependencyReader) GetDependencies(ctx context.Context, endTs tim
 		return nil
 	}
 
-	err := executeQuery(ctx, ddr.dr.db, ddr.dr.cfg, queryGetDependencies(ddr.dr.cfg.Doris.MetricSumTableFullName(), endTs, lookback, ddr.dr.cfg.Doris.Location), f)
+	err := executeQuery(ctx, ddr.dr.db, ddr.dr.cfg, queryGetDependencies(ddr.dr.cfg.Doris.GraphTableFullName(), endTs, lookback, ddr.dr.cfg.Doris.Location), f)
 	if err != nil {
 		return nil, err
 	}
