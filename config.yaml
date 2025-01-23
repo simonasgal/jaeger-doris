@@ -8,6 +8,6 @@ doris:
   username: admin
   password: admin
   database: otel
-  table_name: otel_traces
-  metric_table_name: otel_metrics
+  table: otel_traces
+  graph_table: otel_traces_graph
   timezone: Asia/Shanghai
