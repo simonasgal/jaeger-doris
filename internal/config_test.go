@@ -24,4 +24,7 @@ func TestConfig_InitAndValidate(t *testing.T) {
 	require.Equal(t, "traces_graph", cfg.Doris.GraphTable)
 
 	require.NoError(t, cfg.Validate())
+
+	require.Equal(t, "trace_time", cfg.Doris.SchemaMapping.Timestamp)
+	require.Equal(t, "trace_graph_time", cfg.Doris.GraphSchemaMapping.Timestamp)
 }

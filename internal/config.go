@@ -22,17 +22,133 @@ type ServiceConfig struct {
 }
 
 type DorisConfig struct {
-	Endpoint           string            `yaml:"endpoint" mapstructure:"endpoint"`
-	Username           string            `yaml:"username" mapstructure:"username"`
-	Password           string            `yaml:"password" mapstructure:"password"`
-	Database           string            `yaml:"database" mapstructure:"database"`
-	Table              string            `yaml:"table" mapstructure:"table"`
-	FieldsMapping      map[string]string `yaml:"fields_mapping" mapstructure:"fields_mapping"`
-	GraphTable         string            `yaml:"graph_table" mapstructure:"graph_table"`
-	GraphFieldsMapping map[string]string `yaml:"graph_fields_mapping" mapstructure:"graph_fields_mapping"`
-	TimeZone           string            `yaml:"timezone" mapstructure:"timezone"` // doris does not handle time zones and needs to be handled manually
+	Endpoint           string              `yaml:"endpoint" mapstructure:"endpoint"`
+	Username           string              `yaml:"username" mapstructure:"username"`
+	Password           string              `yaml:"password" mapstructure:"password"`
+	Database           string              `yaml:"database" mapstructure:"database"`
+	Table              string              `yaml:"table" mapstructure:"table"`
+	SchemaMapping      *SchemaMapping      `yaml:"schema_mapping" mapstructure:"schema_mapping"`
+	GraphTable         string              `yaml:"graph_table" mapstructure:"graph_table"`
+	GraphSchemaMapping *GraphSchemaMapping `yaml:"graph_schema_mapping" mapstructure:"graph_schema_mapping"`
+	TimeZone           string              `yaml:"timezone" mapstructure:"timezone"` // doris does not handle time zones and needs to be handled manually
 
 	Location *time.Location `yaml:"-"`
+}
+
+type SchemaMapping struct {
+	ServiceName        string `yaml:"service_name" mapstructure:"service_name"`               // otlp doris exporter: service_name			jaeger: Span.Process.ServiceName
+	Timestamp          string `yaml:"timestamp" mapstructure:"timestamp"`                     // otlp doris exporter: timestamp				jaeger: Span.StartTime
+	ServiceInstanceID  string `yaml:"service_instance_id" mapstructure:"service_instance_id"` // otlp doris exporter: service_instance_id	jaeger: -
+	TraceID            string `yaml:"trace_id" mapstructure:"trace_id"`                       // otlp doris exporter: trace_id				jaeger: Span.TraceID
+	SpanID             string `yaml:"span_id" mapstructure:"span_id"`                         // otlp doris exporter: span_id				jaeger: Span.SpanID
+	TraceState         string `yaml:"trace_state" mapstructure:"trace_state"`                 // otlp doris exporter: trace_state			jaeger: -
+	ParentSpanID       string `yaml:"parent_span_id" mapstructure:"parent_span_id"`           // otlp doris exporter: parent_span_id		jaeger: Span.References[SpanRef.RefType == ChildOf].SpanID
+	SpanName           string `yaml:"span_name" mapstructure:"span_name"`                     // otlp doris exporter: span_name				jaeger: Span.OperationName
+	SpanKind           string `yaml:"span_kind" mapstructure:"span_kind"`                     // otlp doris exporter: span_kind				jaeger: Span.Tags[SpanKind]
+	EndTime            string `yaml:"end_time" mapstructure:"end_time"`                       // otlp doris exporter: end_time				jaeger: -
+	Duration           string `yaml:"duration" mapstructure:"duration"`                       // otlp doris exporter: duration				jaeger: Span.Duration
+	SpanAttributes     string `yaml:"span_attributes" mapstructure:"span_attributes"`         // otlp doris exporter: span_attributes		jaager: Span.Tags
+	Events             string `yaml:"events" mapstructure:"events"`                           // otlp doris exporter: events				jaeger: Span.Logs
+	Links              string `yaml:"links" mapstructure:"links"`                             // otlp doris exporter: links					jaeger: Span.References[SpanRef.RefType == FollowsFrom]
+	StatusMessage      string `yaml:"status_message" mapstructure:"status_message"`           // otlp doris exporter: status_message		jaeger: Span.Tags["otel.status_description"]
+	StatusCode         string `yaml:"status_code" mapstructure:"status_code"`                 // otlp doris exporter: status_code			jaager: Span.Tags["otel.status_code"]
+	ResourceAttributes string `yaml:"resource_attributes" mapstructure:"resource_attributes"` // otlp doris exporter: resource_attributes	jaeger: Span.Process.Tags
+	ScopeName          string `yaml:"scope_name" mapstructure:"scope_name"`                   // otlp doris exporter: scope_name			jaeger: -
+	ScopeVersion       string `yaml:"scope_version" mapstructure:"scope_version"`             // otlp doris exporter: scope_version			jaeger: -
+}
+
+func (s *SchemaMapping) FillDefaultValues() {
+	if s.ServiceName == "" {
+		s.ServiceName = "service_name"
+	}
+	if s.Timestamp == "" {
+		s.Timestamp = "timestamp"
+	}
+	if s.ServiceInstanceID == "" {
+		s.ServiceInstanceID = "service_instance_id"
+	}
+	if s.TraceID == "" {
+		s.TraceID = "trace_id"
+	}
+	if s.SpanID == "" {
+		s.SpanID = "span_id"
+	}
+	if s.TraceState == "" {
+		s.TraceState = "trace_state"
+	}
+	if s.ParentSpanID == "" {
+		s.ParentSpanID = "parent_span_id"
+	}
+	if s.SpanName == "" {
+		s.SpanName = "span_name"
+	}
+	if s.SpanKind == "" {
+		s.SpanKind = "span_kind"
+	}
+	if s.EndTime == "" {
+		s.EndTime = "end_time"
+	}
+	if s.Duration == "" {
+		s.Duration = "duration"
+	}
+	if s.SpanAttributes == "" {
+		s.SpanAttributes = "span_attributes"
+	}
+	if s.Events == "" {
+		s.Events = "events"
+	}
+	if s.Links == "" {
+		s.Links = "links"
+	}
+	if s.StatusMessage == "" {
+		s.StatusMessage = "status_message"
+	}
+	if s.StatusCode == "" {
+		s.StatusCode = "status_code"
+	}
+	if s.ResourceAttributes == "" {
+		s.ResourceAttributes = "resource_attributes"
+	}
+	if s.ScopeName == "" {
+		s.ScopeName = "scope_name"
+	}
+	if s.ScopeVersion == "" {
+		s.ScopeVersion = "scope_version"
+	}
+}
+
+type GraphSchemaMapping struct {
+	Timestamp               string `yaml:"timestamp" mapstructure:"timestamp"`                                   // otlp doris exporter: timestamp					jaeger: -
+	CallerServiceName       string `yaml:"caller_service_name" mapstructure:"caller_service_name"`               // otlp doris exporter: caller_service_name		jaeger: DependencyLink.Parent
+	CallerServiceInstanceID string `yaml:"caller_service_instance_id" mapstructure:"caller_service_instance_id"` // otlp doris exporter: caller_service_instance_id	jaeger: -
+	CalleeServiceName       string `yaml:"callee_service_name" mapstructure:"callee_service_name"`               // otlp doris exporter: callee_service_name		jaeger: DependencyLink.Child
+	CalleeServiceInstanceID string `yaml:"callee_service_instance_id" mapstructure:"callee_service_instance_id"` // otlp doris exporter: callee_service_instance_id	jaeger: -
+	Count                   string `yaml:"count" mapstructure:"count"`                                           // otlp doris exporter: count						jaeger: DependencyLink.CallCount
+	ErrorCount              string `yaml:"error_count" mapstructure:"error_count"`                               // otlp doris exporter: error_count				jaeger: -
+}
+
+func (s *GraphSchemaMapping) FillDefaultValues() {
+	if s.Timestamp == "" {
+		s.Timestamp = "timestamp"
+	}
+	if s.CallerServiceName == "" {
+		s.CallerServiceName = "caller_service_name"
+	}
+	if s.CallerServiceInstanceID == "" {
+		s.CallerServiceInstanceID = "caller_service_instance_id"
+	}
+	if s.CalleeServiceName == "" {
+		s.CalleeServiceName = "callee_service_name"
+	}
+	if s.CalleeServiceInstanceID == "" {
+		s.CalleeServiceInstanceID = "callee_service_instance_id"
+	}
+	if s.Count == "" {
+		s.Count = "count"
+	}
+	if s.ErrorCount == "" {
+		s.ErrorCount = "error_count"
+	}
 }
 
 const (
@@ -65,6 +181,14 @@ func (c *Config) Init(configPath string) error {
 
 	if c.Doris == nil {
 		c.Doris = &DorisConfig{}
+	}
+
+	if c.Doris.SchemaMapping == nil {
+		c.Doris.SchemaMapping = &SchemaMapping{}
+	}
+
+	if c.Doris.GraphSchemaMapping == nil {
+		c.Doris.GraphSchemaMapping = &GraphSchemaMapping{}
 	}
 
 	return nil
@@ -103,55 +227,12 @@ func (c *Config) Validate() error {
 	if c.Doris.Table == "" {
 		c.Doris.Table = defaultDorisTable
 	}
-
-	defaultMapping := map[string]string{
-		SpanProcessAttributeServiceName:     SpanProcessAttributeServiceName,     // service_name
-		SpanAttributeStartTime:              SpanAttributeStartTime,              // timestamp
-		"service_instance_id":               "service_instance_id",               // service_instance_id (unused)
-		SpanAttributeTraceID:                SpanAttributeTraceID,                // trace_id
-		SpanAttributeSpanID:                 SpanAttributeSpanID,                 // span_id
-		"trace_state":                       "trace_state",                       // trace_state (unused)
-		SpanReferenceChildOfAttributeSpanID: SpanReferenceChildOfAttributeSpanID, // parent_span_id
-		SpanAttributeOperationName:          SpanAttributeOperationName,          // span_name
-		SpanTagAttributeSpanKind:            SpanTagAttributeSpanKind,            // span_kind
-		"end_time":                          "end_time",                          // end_time (unused)
-		SpanAttributeDuration:               SpanAttributeDuration,               // duration
-		SpanAttributeTags:                   SpanAttributeTags,                   // span_attributes
-		SpanAttributeLogs:                   SpanAttributeLogs,                   // events
-		SpanAttributeReferencesFollowsFrom:  SpanAttributeReferencesFollowsFrom,  // links
-		SpanTagAttributeStatusDescription:   SpanTagAttributeStatusDescription,   // status_message
-		SpanTagAttributeStatusCode:          SpanTagAttributeStatusCode,          // status_code
-		SpanProcessAttributeTags:            SpanProcessAttributeTags,            // resource_attributes
-		"scope_name":                        "scope_name",                        // scope_name (unused)
-		"scope_version":                     "scope_version",                     // scope_version (unused)
-	}
-
-	if c.Doris.FieldsMapping != nil {
-		for k, v := range c.Doris.FieldsMapping {
-			defaultMapping[k] = v
-		}
-	}
-	c.Doris.FieldsMapping = defaultMapping
+	c.Doris.SchemaMapping.FillDefaultValues()
 
 	if c.Doris.GraphTable == "" {
 		c.Doris.GraphTable = defaultDorisGraphTable
 	}
-
-	defaultGraphMapping := map[string]string{
-		GraphEdgeTimeStamp:           GraphEdgeTimeStamp,           // timestamp
-		GraphEdgeParent:              GraphEdgeParent,              // caller_service_name
-		"caller_service_instance_id": "caller_service_instance_id", // caller_service_instance_id (unused)
-		GraphEdgeChild:               GraphEdgeChild,               // callee_service_name
-		"callee_service_instance_id": "callee_service_instance_id", // callee_service_instance_id (unused)
-		GraphEdgeCallCount:           GraphEdgeCallCount,           // count
-		"error_count":                "error_count",                // error_count (unused)
-	}
-	if c.Doris.GraphFieldsMapping != nil {
-		for k, v := range c.Doris.GraphFieldsMapping {
-			defaultGraphMapping[k] = v
-		}
-	}
-	c.Doris.GraphFieldsMapping = defaultGraphMapping
+	c.Doris.GraphSchemaMapping.FillDefaultValues()
 
 	if c.Doris.TimeZone == "" {
 		c.Doris.Location = time.Local

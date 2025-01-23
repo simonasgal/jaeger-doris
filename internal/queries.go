@@ -8,52 +8,52 @@ import (
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 )
 
-func queryGetTrace(tableName string, traceID string) string {
+func queryGetTrace(schema *SchemaMapping, tableName string, traceID string) string {
 	return fmt.Sprintf(
 		`SELECT * FROM %s WHERE %s = "%s"`,
 		tableName,
-		SpanAttributeTraceID,
+		schema.TraceID,
 		traceID,
 	)
 }
 
-func queryGetServices(tableName string) string {
+func queryGetServices(schema *SchemaMapping, tableName string) string {
 	return fmt.Sprintf(
 		`SELECT %s FROM %s GROUP BY %s`,
-		SpanProcessAttributeServiceName,
+		schema.ServiceName,
 		tableName,
-		SpanProcessAttributeServiceName,
+		schema.ServiceName,
 	)
 }
 
-func queryGetOperations(tableName string, param spanstore.OperationQueryParameters) string {
+func queryGetOperations(schema *SchemaMapping, tableName string, param spanstore.OperationQueryParameters) string {
 	query := fmt.Sprintf(
 		`SELECT %s, %s FROM %s WHERE %s = "%s"`,
-		SpanAttributeOperationName,
-		SpanTagAttributeSpanKind,
+		schema.SpanName,
+		schema.SpanKind,
 		tableName,
-		SpanProcessAttributeServiceName,
+		schema.ServiceName,
 		param.ServiceName,
 	)
 
 	if param.SpanKind != "" {
 		query += fmt.Sprintf(
 			` AND %s = "%s"`,
-			SpanTagAttributeSpanKind,
+			schema.SpanKind,
 			jeagerToOtelSpanKind[param.SpanKind],
 		)
 	}
 
 	query += fmt.Sprintf(
 		` GROUP BY %s, %s`,
-		SpanAttributeOperationName,
-		SpanTagAttributeSpanKind,
+		schema.SpanName,
+		schema.SpanKind,
 	)
 
 	return query
 }
 
-func queryFindTraces(tableName string, traceIDs []string) string {
+func queryFindTraces(schema *SchemaMapping, tableName string, traceIDs []string) string {
 	for i, traceID := range traceIDs {
 		traceIDs[i] = fmt.Sprintf(`'%s'`, traceID)
 	}
@@ -62,12 +62,12 @@ func queryFindTraces(tableName string, traceIDs []string) string {
 	return fmt.Sprintf(
 		`SELECT * FROM %s WHERE %s IN (%s)`,
 		tableName,
-		SpanAttributeTraceID,
+		schema.TraceID,
 		traceIDsString,
 	)
 }
 
-func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, location *time.Location) string {
+func queryFindTraceIDs(schema *SchemaMapping, tableName string, param *spanstore.TraceQueryParameters, location *time.Location) string {
 	tags := make(map[string]string, len(param.Tags))
 	for k, v := range param.Tags {
 		tags[k] = v
@@ -77,7 +77,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 	for k, v := range tags {
 		predicates = append(predicates, fmt.Sprintf(
 			`%s['%s'] = '%s'`,
-			SpanAttributeTags,
+			schema.SpanAttributes,
 			k,
 			v,
 		))
@@ -86,7 +86,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 	if param.ServiceName != "" {
 		predicates = append(predicates, fmt.Sprintf(
 			`%s = '%s'`,
-			SpanProcessAttributeServiceName,
+			schema.ServiceName,
 			param.ServiceName,
 		))
 	}
@@ -94,7 +94,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 	if param.OperationName != "" {
 		predicates = append(predicates, fmt.Sprintf(
 			`%s = '%s'`,
-			SpanAttributeOperationName,
+			schema.SpanName,
 			param.OperationName,
 		))
 	}
@@ -102,7 +102,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 	if !param.StartTimeMin.IsZero() {
 		predicates = append(predicates, fmt.Sprintf(
 			`%s >= '%s'`,
-			SpanAttributeStartTime,
+			schema.Timestamp,
 			param.StartTimeMin.In(location).Format(timeFormat),
 		))
 	}
@@ -110,7 +110,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 	if !param.StartTimeMax.IsZero() {
 		predicates = append(predicates, fmt.Sprintf(
 			`%s <= '%s'`,
-			SpanAttributeStartTime,
+			schema.Timestamp,
 			param.StartTimeMax.In(location).Format(timeFormat),
 		))
 	}
@@ -119,7 +119,7 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 		predicates = append(predicates,
 			fmt.Sprintf(
 				`%s >= %d`,
-				SpanAttributeDuration,
+				schema.Duration,
 				param.DurationMin.Microseconds(),
 			))
 	}
@@ -128,15 +128,15 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 		predicates = append(predicates,
 			fmt.Sprintf(
 				`%s <= %d`,
-				SpanAttributeDuration,
+				schema.Duration,
 				param.DurationMax.Microseconds(),
 			))
 	}
 
 	query := fmt.Sprintf(
 		`SELECT %s, MIN(%s) AS t FROM %s`,
-		SpanAttributeTraceID,
-		SpanAttributeStartTime,
+		schema.TraceID,
+		schema.Timestamp,
 		tableName,
 	)
 
@@ -149,27 +149,30 @@ func queryFindTraceIDs(tableName string, param *spanstore.TraceQueryParameters, 
 
 	query += fmt.Sprintf(
 		` GROUP BY %s ORDER BY t DESC LIMIT %d`,
-		SpanAttributeTraceID,
+		schema.TraceID,
 		param.NumTraces,
 	)
 
 	return query
 }
 
-func queryGetDependencies(tableName string, endTs time.Time, lookback time.Duration, location *time.Location) string {
+func queryGetDependencies(graphSchema *GraphSchemaMapping, tableName string, endTs time.Time, lookback time.Duration, location *time.Location) string {
 	template := `select
-	caller_service_name as client,
-	callee_service_name as server,
-	sum(count) as value
+%s, %s, sum(%s) as %s
 from %s
 where timestamp >= '%s'
 and timestamp <= '%s'
-group by client, server`
+group by %s, %s`
 
 	return fmt.Sprintf(
 		template,
+		graphSchema.CallerServiceName,
+		graphSchema.CalleeServiceName,
+		graphSchema.Count, graphSchema.Count,
 		tableName,
 		endTs.Add(-lookback).In(location).Format(timeFormat),
 		endTs.In(location).Format(timeFormat),
+		graphSchema.CallerServiceName,
+		graphSchema.CalleeServiceName,
 	)
 }

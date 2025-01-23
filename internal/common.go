@@ -98,11 +98,12 @@ type otelEvent struct {
 func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*model.Span, error) {
 	logger := LoggerFromContext(ctx)
 	location := cfg.Doris.Location
+	schema := cfg.Doris.SchemaMapping
 
 	span := &model.Span{}
 
 	// TraceID
-	traceIDString, ok := record[SpanAttributeTraceID]
+	traceIDString, ok := record[schema.TraceID]
 	if !ok {
 		return nil, fmt.Errorf("invalid trace_id")
 	}
@@ -113,7 +114,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	span.TraceID = traceID
 
 	// SpanID
-	spanIDString, ok := record[SpanAttributeSpanID]
+	spanIDString, ok := record[schema.SpanID]
 	if !ok {
 		return nil, fmt.Errorf("invalid span_id")
 	}
@@ -124,7 +125,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	span.SpanID = spanID
 
 	// OperationName
-	operationName, ok := record[SpanAttributeOperationName]
+	operationName, ok := record[schema.SpanName]
 	if !ok {
 		return nil, fmt.Errorf("invalid span_name")
 	}
@@ -133,7 +134,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	// References
 	references := []model.SpanRef{}
 
-	parentSpanIDString := record[SpanReferenceChildOfAttributeSpanID]
+	parentSpanIDString := record[schema.ParentSpanID]
 	if parentSpanIDString != "" {
 		parentSpanID, err := model.SpanIDFromString(parentSpanIDString)
 		if err != nil {
@@ -146,7 +147,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		})
 	}
 
-	referencesFollowsFromString := record[SpanAttributeReferencesFollowsFrom]
+	referencesFollowsFromString := record[schema.Links]
 	if referencesFollowsFromString != "" {
 		referencesFollowsFrom := []*otelLink{}
 		err = json.Unmarshal([]byte(referencesFollowsFromString), &referencesFollowsFrom)
@@ -175,7 +176,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	span.References = references
 
 	// StartTime
-	startTimeString, ok := record[SpanAttributeStartTime]
+	startTimeString, ok := record[schema.Timestamp]
 	if !ok {
 		return nil, fmt.Errorf("invalid timestamp")
 	}
@@ -186,7 +187,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	span.StartTime = startTime
 
 	// Duration
-	durationString, ok := record[SpanAttributeDuration]
+	durationString, ok := record[schema.Duration]
 	if !ok {
 		return nil, fmt.Errorf("invalid duration")
 	}
@@ -200,7 +201,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 
 	// Tags
 	tags := []model.KeyValue{}
-	tagsString := record[SpanAttributeTags]
+	tagsString := record[schema.SpanAttributes]
 	if tagsString != "" {
 		attributes := make(map[string]any)
 		err = json.Unmarshal([]byte(tagsString), &attributes)
@@ -214,7 +215,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	}
 
 	// Tags.SpanKind
-	spanKind, ok := record[SpanTagAttributeSpanKind]
+	spanKind, ok := record[schema.SpanKind]
 	if !ok {
 		logger.Warn("invalid span_kind")
 	} else {
@@ -227,7 +228,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	}
 
 	// Tags.StatusDescription
-	statusMessage, ok := record[SpanTagAttributeStatusDescription]
+	statusMessage, ok := record[schema.StatusMessage]
 	if !ok {
 		logger.Warn("invalid status_message")
 	} else {
@@ -235,7 +236,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	}
 
 	// Tags.StatusCode
-	statusCode, ok := record[SpanTagAttributeStatusCode]
+	statusCode, ok := record[schema.StatusCode]
 	if !ok {
 		logger.Warn("invalid status_code")
 	} else {
@@ -249,7 +250,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 
 	// Logs
 	logs := []model.Log{}
-	logsString := record[SpanAttributeLogs]
+	logsString := record[schema.Events]
 	if logsString != "" {
 		events := []*otelEvent{}
 		err = json.Unmarshal([]byte(logsString), &events)
@@ -277,13 +278,13 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	span.Logs = logs
 
 	// Process
-	serviceName, ok := record[SpanProcessAttributeServiceName]
+	serviceName, ok := record[schema.ServiceName]
 	if !ok {
 		return nil, fmt.Errorf("invalid service_name")
 	}
 
 	processTags := []model.KeyValue{}
-	processTagsString := record[SpanProcessAttributeTags]
+	processTagsString := record[schema.ResourceAttributes]
 	if processTagsString != "" {
 		attributes := make(map[string]any)
 		err = json.Unmarshal([]byte(processTagsString), &attributes)
@@ -304,25 +305,27 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	return span, nil
 }
 
-func recordToDependencyLink(_ context.Context, _ *Config, record map[string]string) (*model.DependencyLink, error) {
+func recordToDependencyLink(_ context.Context, cfg *Config, record map[string]string) (*model.DependencyLink, error) {
+	graphSchema := cfg.Doris.GraphSchemaMapping
+
 	dependencyLink := &model.DependencyLink{}
 
 	// Parent
-	parent, ok := record["client"]
+	parent, ok := record[graphSchema.CallerServiceName]
 	if !ok {
 		return nil, fmt.Errorf("invalid client")
 	}
 	dependencyLink.Parent = parent
 
 	// Child
-	child, ok := record["server"]
+	child, ok := record[graphSchema.CalleeServiceName]
 	if !ok {
 		return nil, fmt.Errorf("invalid server")
 	}
 	dependencyLink.Child = child
 
 	// CallCount
-	callCountString, ok := record["value"]
+	callCountString, ok := record[graphSchema.Count]
 	if !ok {
 		return nil, fmt.Errorf("invalid value")
 	}
@@ -366,35 +369,13 @@ var jeagerToOtelSpanKind map[string]string = map[string]string{
 	string(ext.SpanKindConsumerEnum):  SpanKindConsumer,
 }
 
-// TODO reference
 const (
-	SpanAttributeTraceID               = "trace_id"
-	SpanAttributeSpanID                = "span_id"
-	SpanAttributeOperationName         = "span_name"
-	SpanAttributeReferencesFollowsFrom = "links"
-	SpanAttributeStartTime             = "timestamp"
-	SpanAttributeDuration              = "duration"
-	SpanAttributeTags                  = "span_attributes"
-	SpanAttributeLogs                  = "events"
-
-	SpanReferenceChildOfAttributeSpanID = "parent_span_id"
-
-	SpanTagAttributeSpanKind          = "span_kind"
-	SpanTagKeyStatusDescription       = "otel.status_description"
-	SpanTagAttributeStatusDescription = "status_message"
-	SpanTagKeyStatusCode              = "otel.status_code"
-	SpanTagAttributeStatusCode        = "status_code"
-	SpanTagKeyError                   = "error"
+	// TODO reference
+	SpanTagKeyStatusDescription = "otel.status_description"
+	SpanTagKeyStatusCode        = "otel.status_code"
+	SpanTagKeyError             = "error"
 
 	SpanLogFieldKeyEvent = "event"
-
-	SpanProcessAttributeServiceName = "service_name"
-	SpanProcessAttributeTags        = "resource_attributes"
-
-	GraphEdgeTimeStamp = "timestamp"
-	GraphEdgeParent    = "caller_service_name"
-	GraphEdgeChild     = "callee_service_name"
-	GraphEdgeCallCount = "count"
 
 	// TODO reference
 	SpanKindInternal = "SPAN_KIND_INTERNAL"

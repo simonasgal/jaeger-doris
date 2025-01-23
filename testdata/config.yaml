@@ -9,5 +9,9 @@ doris:
   password: admin
   database: otel2
   table: traces
+  schema_mapping:
+    timestamp: "trace_time"
   graph_table: traces_graph
+  graph_schema_mapping:
+    timestamp: "trace_graph_time"
   timezone: Asia/Shanghai
