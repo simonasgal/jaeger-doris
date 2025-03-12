@@ -5,20 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/jaegertracing/jaeger/plugin/storage/grpc/shared"
-	"github.com/joker-star-l/jaeger-doris/internal"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/reflection"
+
+	"github.com/simonasgal/jaeger-doris/internal"
+	"github.com/simonasgal/jaeger-doris/thrid_party/jaeger/plugin/storage/grpc/shared"
 )
 
 var configPath string
@@ -26,6 +30,11 @@ var configPath string
 const serviceName = "jaeger-doris"
 
 func main() {
+	go func() {
+		fmt.Println("===== starting profile listener")
+		http.ListenAndServe(":8080", nil)
+	}()
+
 	cfg := &internal.Config{}
 	command := &cobra.Command{
 		Use:   serviceName,
@@ -114,6 +123,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 			ctx = internal.LoggerWithContext(ctx, logger)
+			logger.Info("==== UnaryInterceptor ====")
 			res, err := handler(ctx, req)
 			if err != nil && err != context.Canceled {
 				logger.Error("gRPC interceptor", zap.Error(err))
@@ -122,6 +132,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 		}),
 		grpc.StreamInterceptor(func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 			ctx := internal.LoggerWithContext(stream.Context(), logger)
+			logger.Info("==== StreamInterceptor ====")
 			stream = &contextServerStream{
 				ServerStream: stream,
 				ctx:          ctx,
