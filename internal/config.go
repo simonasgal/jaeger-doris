@@ -15,10 +15,11 @@ type Config struct {
 }
 
 type ServiceConfig struct {
-	IP            string `yaml:"ip" mapstructure:"ip"`
-	Port          int32  `yaml:"port" mapstructure:"port"`
-	LogLevel      string `yaml:"log_level" mapstructure:"log_level"`
-	TimeoutSecond int64  `yaml:"timeout" mapstructure:"timeout"`
+	IP                  string `yaml:"ip" mapstructure:"ip"`
+	Port                int32  `yaml:"port" mapstructure:"port"`
+	LogLevel            string `yaml:"log_level" mapstructure:"log_level"`
+	TimeoutSecond       int64  `yaml:"timeout" mapstructure:"timeout"`
+	GRPCStreamSpanLimit int32  `yaml:"grpc_stream_span_limit" mapstructure:"grpc_stream_span_limit"`
 }
 
 type DorisConfig struct {
@@ -152,9 +153,10 @@ func (s *GraphSchemaMapping) FillDefaultValues() {
 }
 
 const (
-	defaultServiceIP       = "localhost"
-	defaultServicePort     = 17271
-	defaultServiceLogLevel = "info"
+	defaultServiceIP           = "localhost"
+	defaultServicePort         = 17271
+	defaultServiceLogLevel     = "info"
+	defaultGRPCStreamSpanLimit = 1000
 
 	defaultDorisDatabase   = "otel"
 	defaultDorisTable      = "otel_traces"
@@ -206,6 +208,10 @@ func (c *Config) Validate() error {
 
 	if c.Service.LogLevel == "" {
 		c.Service.LogLevel = defaultServiceLogLevel
+	}
+
+	if c.Service.GRPCStreamSpanLimit == 0 {
+		c.Service.GRPCStreamSpanLimit = defaultGRPCStreamSpanLimit
 	}
 
 	if c.Service.TimeoutSecond < 0 {

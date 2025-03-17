@@ -11,6 +11,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
@@ -22,7 +23,7 @@ import (
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 )
 
-const spanBatchSize = 1000
+const defaultSpanBatchSize = 1000
 
 // GRPCHandler implements all methods of Remote Storage gRPC API.
 type GRPCHandler struct {
@@ -30,6 +31,12 @@ type GRPCHandler struct {
 	// ArchiveImpl ArchiveStoragePlugin
 	// StreamImpl  StreamingSpanWriterPlugin
 	impl *GRPCHandlerStorageImpl
+	opts *GRPCHandlerOptions
+}
+
+// GRPCHandlerOptions contains grpc handler options
+type GRPCHandlerOptions struct {
+	SpanBatchSize int
 }
 
 // GRPCHandlerStorageImpl contains accessors for various storage implementations needed by the handler.
@@ -45,16 +52,12 @@ type GRPCHandlerStorageImpl struct {
 }
 
 // NewGRPCHandler creates a handler given individual storage implementations.
-func NewGRPCHandler(impl *GRPCHandlerStorageImpl) *GRPCHandler {
-	return &GRPCHandler{impl: impl}
+func NewGRPCHandler(impl *GRPCHandlerStorageImpl, opts *GRPCHandlerOptions) *GRPCHandler {
+	return &GRPCHandler{impl: impl, opts: opts}
 }
 
 // NewGRPCHandler creates a handler given implementations grouped by plugin services.
-func NewGRPCHandlerWithPlugins(
-	mainImpl StoragePlugin,
-	archiveImpl ArchiveStoragePlugin,
-	streamImpl StreamingSpanWriterPlugin,
-) *GRPCHandler {
+func NewGRPCHandlerWithPlugins(mainImpl StoragePlugin, archiveImpl ArchiveStoragePlugin, streamImpl StreamingSpanWriterPlugin, opts *GRPCHandlerOptions) *GRPCHandler {
 	impl := &GRPCHandlerStorageImpl{
 		SpanReader:       mainImpl.SpanReader,
 		SpanWriter:       mainImpl.SpanWriter,
@@ -71,7 +74,7 @@ func NewGRPCHandlerWithPlugins(
 	if streamImpl != nil {
 		impl.StreamingSpanWriter = streamImpl.StreamingSpanWriter
 	}
-	return NewGRPCHandler(impl)
+	return NewGRPCHandler(impl, opts)
 }
 
 // Register registers the server as gRPC methods handler.
@@ -248,8 +251,12 @@ func (s *GRPCHandler) FindTraceIDs(ctx context.Context, r *storage_v1.FindTraceI
 	}, nil
 }
 
-func (*GRPCHandler) sendSpans(spans []*model.Span, sendFn func(*storage_v1.SpansResponseChunk) error) error {
+func (s *GRPCHandler) sendSpans(spans []*model.Span, sendFn func(*storage_v1.SpansResponseChunk) error) error {
 	chunk := make([]model.Span, 0, len(spans))
+	spanBatchSize := defaultSpanBatchSize
+	if s.opts != nil {
+		spanBatchSize = s.opts.SpanBatchSize
+	}
 	for i := 0; i < len(spans); i += spanBatchSize {
 		chunk = chunk[:0]
 		for j := i; j < len(spans) && j < i+spanBatchSize; j++ {

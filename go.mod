@@ -1,6 +1,6 @@
 module github.com/simonasgal/jaeger-doris
 
-go 1.22.3
+go 1.23.4
 
 require (
 	// cannot use higher version: https://github.com/go-sql-driver/mysql/issues/1602

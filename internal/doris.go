@@ -9,7 +9,6 @@ import (
 	"github.com/jaegertracing/jaeger/storage/dependencystore"
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 	"go.uber.org/zap"
-	_ "google.golang.org/grpc/encoding/gzip"
 )
 
 type DorisStorage struct {
