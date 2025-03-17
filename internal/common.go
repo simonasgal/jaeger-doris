@@ -34,12 +34,18 @@ func executeQuery(ctx context.Context, db *sql.DB, cfg *Config, query string, f 
 	logger := LoggerFromContext(ctx)
 
 	logger.Debug("executing query", zap.String("query", query))
+	started := time.Now()
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
+
+	logger.Debug("query done",
+		zap.Duration("duration", time.Since(started).Truncate(time.Millisecond)),
+		zap.String("query", query),
+	)
 
 	columns, err := rows.Columns()
 	if err != nil {
