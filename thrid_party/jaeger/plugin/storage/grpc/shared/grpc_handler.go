@@ -23,6 +23,7 @@ import (
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 )
 
+// changed: default span batch size, may be overridden  by configuration
 const defaultSpanBatchSize = 1000
 
 // GRPCHandler implements all methods of Remote Storage gRPC API.
@@ -253,6 +254,8 @@ func (s *GRPCHandler) FindTraceIDs(ctx context.Context, r *storage_v1.FindTraceI
 
 func (s *GRPCHandler) sendSpans(spans []*model.Span, sendFn func(*storage_v1.SpansResponseChunk) error) error {
 	chunk := make([]model.Span, 0, len(spans))
+
+	// Changed: use batch size from the configuration, if available
 	spanBatchSize := defaultSpanBatchSize
 	if s.opts != nil {
 		spanBatchSize = s.opts.SpanBatchSize
