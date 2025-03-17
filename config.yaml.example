@@ -3,7 +3,7 @@ service:
   port: 17271
   log_level: INFO
   timeout: 60
-  grpc_stream_span_limit: 200
+  grpc_stream_span_batch_size: 200
 doris:
   endpoint: doris:9030
   username: admin

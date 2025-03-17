@@ -15,11 +15,11 @@ type Config struct {
 }
 
 type ServiceConfig struct {
-	IP                  string `yaml:"ip" mapstructure:"ip"`
-	Port                int32  `yaml:"port" mapstructure:"port"`
-	LogLevel            string `yaml:"log_level" mapstructure:"log_level"`
-	TimeoutSecond       int64  `yaml:"timeout" mapstructure:"timeout"`
-	GRPCStreamSpanLimit int32  `yaml:"grpc_stream_span_limit" mapstructure:"grpc_stream_span_limit"`
+	IP                string `yaml:"ip" mapstructure:"ip"`
+	Port              int32  `yaml:"port" mapstructure:"port"`
+	LogLevel          string `yaml:"log_level" mapstructure:"log_level"`
+	TimeoutSecond     int64  `yaml:"timeout" mapstructure:"timeout"`
+	GRPCSpanBatchSize int32  `yaml:"grpc_stream_span_batch_size" mapstructure:"grpc_stream_span_batch_size"`
 }
 
 type DorisConfig struct {
@@ -153,10 +153,10 @@ func (s *GraphSchemaMapping) FillDefaultValues() {
 }
 
 const (
-	defaultServiceIP           = "localhost"
-	defaultServicePort         = 17271
-	defaultServiceLogLevel     = "info"
-	defaultGRPCStreamSpanLimit = 1000
+	defaultServiceIP       = "localhost"
+	defaultServicePort     = 17271
+	defaultServiceLogLevel = "info"
+	defaultSpanBatchSize   = 1000
 
 	defaultDorisDatabase   = "otel"
 	defaultDorisTable      = "otel_traces"
@@ -210,8 +210,8 @@ func (c *Config) Validate() error {
 		c.Service.LogLevel = defaultServiceLogLevel
 	}
 
-	if c.Service.GRPCStreamSpanLimit == 0 {
-		c.Service.GRPCStreamSpanLimit = defaultGRPCStreamSpanLimit
+	if c.Service.GRPCSpanBatchSize == 0 {
+		c.Service.GRPCSpanBatchSize = defaultSpanBatchSize
 	}
 
 	if c.Service.TimeoutSecond < 0 {

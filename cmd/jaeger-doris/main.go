@@ -110,7 +110,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 	defer backend.Close()
 
 	logger := internal.LoggerFromContext(ctx)
-	grpcHandlerOpts := &shared.GRPCHandlerOptions{SpanBatchSize: int(cfg.Service.GRPCStreamSpanLimit)}
+	grpcHandlerOpts := &shared.GRPCHandlerOptions{SpanBatchSize: int(cfg.Service.GRPCSpanBatchSize)}
 
 	grpcHandler := shared.NewGRPCHandlerWithPlugins(backend, nil, nil, grpcHandlerOpts)
 	grpcServer := grpc.NewServer(
