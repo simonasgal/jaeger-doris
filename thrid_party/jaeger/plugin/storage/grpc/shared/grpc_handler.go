@@ -5,16 +5,15 @@ package shared
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
+	"io"
 
 	"github.com/jaegertracing/jaeger/model"
 	_ "github.com/jaegertracing/jaeger/pkg/gogocodec" // force gogo codec registration
@@ -265,7 +264,20 @@ func (s *GRPCHandler) sendSpans(spans []*model.Span, sendFn func(*storage_v1.Spa
 		for j := i; j < len(spans) && j < i+spanBatchSize; j++ {
 			chunk = append(chunk, *spans[j])
 		}
-		if err := sendFn(&storage_v1.SpansResponseChunk{Spans: chunk}); err != nil {
+		pld := storage_v1.SpansResponseChunk{Spans: chunk}
+		if err := sendFn(&pld); err != nil {
+
+			fmt.Printf("===== chunl len: %v\n", len(chunk))
+			b, _ := json.Marshal(pld)
+			fmt.Printf("===== len pld: %v\n", len(b))
+			//for _, item := range chunk {
+			// fmt.Printf("===== item: %+v\n", item)
+			//b, _ := json.Marshal(item)
+			//fmt.Printf("===== chunk len: %v\n", len(b))
+			//}
+			// fmt.Printf("==== chunk: %#v\n", chunk)
+
+			return err
 			return fmt.Errorf("grpc plugin failed to send response: %w", err)
 		}
 	}

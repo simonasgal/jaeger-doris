@@ -5,10 +5,11 @@ import (
 	"database/sql"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jaegertracing/jaeger/plugin/storage/grpc/shared"
 	"github.com/jaegertracing/jaeger/storage/dependencystore"
 	"github.com/jaegertracing/jaeger/storage/spanstore"
 	"go.uber.org/zap"
+
+	"github.com/simonasgal/jaeger-doris/thrid_party/jaeger/plugin/storage/grpc/shared"
 )
 
 type DorisStorage struct {

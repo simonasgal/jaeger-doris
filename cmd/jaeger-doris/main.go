@@ -134,6 +134,9 @@ func run(ctx context.Context, cfg *internal.Config) error {
 			}
 			return err
 		}),
+		// use deprecated method temporary since it just works
+		// TODO: switch to encoding/gzip
+		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
 	)
 
 	reflection.Register(grpcServer)
@@ -175,4 +178,5 @@ func run(ctx context.Context, cfg *internal.Config) error {
 
 	err = multierr.Combine(err, backend.Close())
 	return err
+
 }

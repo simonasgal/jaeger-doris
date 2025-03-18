@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"time"
 
 	"github.com/jaegertracing/jaeger/model"
@@ -150,6 +151,13 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 	for _, trace := range traceMap {
 		if len(trace.Spans) > 0 {
 			traces = append(traces, trace)
+			for _, s := range trace.Spans {
+				for _, t := range s.Tags {
+					if len(t.VStr) > 1000000 {
+						fmt.Printf("==== ultra large tag detected, spanID: %v\n", s.SpanID)
+					}
+				}
+			}
 		}
 	}
 
