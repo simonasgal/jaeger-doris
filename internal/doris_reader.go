@@ -51,7 +51,7 @@ func (dr *dorisReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mo
 		return nil, spanstore.ErrTraceNotFound
 	}
 
-	return trace, nil
+	return sanitizeTrace(trace), nil
 }
 
 func (dr *dorisReader) GetServices(ctx context.Context) ([]string, error) {
@@ -150,14 +150,7 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 
 	for _, trace := range traceMap {
 		if len(trace.Spans) > 0 {
-			traces = append(traces, trace)
-			for _, s := range trace.Spans {
-				for _, t := range s.Tags {
-					if len(t.VStr) > 1000000 {
-						fmt.Printf("==== ultra large tag detected, spanID: %v\n", s.SpanID)
-					}
-				}
-			}
+			traces = append(traces, sanitizeTrace(trace))
 		}
 	}
 
