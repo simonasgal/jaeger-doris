@@ -75,12 +75,27 @@ func queryFindTraceIDs(schema *SchemaMapping, tableName string, param *spanstore
 
 	predicates := make([]string, 0, len(tags)+6)
 	for k, v := range tags {
-		predicates = append(predicates, fmt.Sprintf(
-			`%s['%s'] = '%s'`,
-			schema.SpanAttributes,
-			k,
-			v,
-		))
+		// XXX: work around special case: "error=true" must be treaded separately
+		// since there is no such tag "error", instead there is
+		// string value "error.msg".
+		//
+		// Drop this after "error" tag is treated correctly at the ingestion time
+		// in otelcol-contrib by the doris exporter
+		var q string
+		if k == "error" {
+			q = fmt.Sprintf(
+				`%s['error.msg'] IS NOT NULL`,
+				schema.SpanAttributes,
+			)
+		} else {
+			q = fmt.Sprintf(
+				`%s['%s'] = '%s'`,
+				schema.SpanAttributes,
+				k,
+				v,
+			)
+		}
+		predicates = append(predicates, q)
 	}
 
 	if param.ServiceName != "" {
