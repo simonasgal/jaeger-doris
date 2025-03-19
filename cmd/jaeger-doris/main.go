@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,6 +29,13 @@ var configPath string
 const serviceName = "jaeger-doris"
 
 func main() {
+
+	// for debugging only. remove afterwards
+
+	go func() {
+		http.ListenAndServe(":8080", nil)
+	}()
+
 	cfg := &internal.Config{}
 	command := &cobra.Command{
 		Use:   serviceName,
@@ -113,6 +122,10 @@ func run(ctx context.Context, cfg *internal.Config) error {
 	grpcHandlerOpts := &shared.GRPCHandlerOptions{SpanBatchSize: int(cfg.Service.GRPCSpanBatchSize)}
 
 	grpcHandler := shared.NewGRPCHandlerWithPlugins(backend, nil, nil, grpcHandlerOpts)
+	compressor, err := grpc.NewGZIPCompressorWithLevel(6)
+	if err != nil {
+		return err
+	}
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 			ctx = internal.LoggerWithContext(ctx, logger)
@@ -136,7 +149,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 		}),
 		// use deprecated method temporary since it just works
 		// TODO: switch to encoding/gzip
-		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
+		grpc.RPCCompressor(compressor),
 	)
 
 	reflection.Register(grpcServer)
