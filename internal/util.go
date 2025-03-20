@@ -11,27 +11,12 @@ func sanitizeTrace(trace *model.Trace) *model.Trace {
 		return trace
 	}
 
-	for i := range trace.Spans {
-		s := trace.Spans[i]
+	for _, s := range trace.Spans {
 		for ti := range s.Tags {
-			t := &s.Tags[ti]
-			if t.VType == model.ValueType_STRING {
-				if len(t.VStr) > maxLen {
-					t.VStr = t.VStr[:maxLen-3] + "..."
-				}
+			if s.Tags[ti].VType == model.ValueType_STRING && len(s.Tags[ti].VStr) > maxLen {
+				s.Tags[ti].VStr = s.Tags[ti].VStr[:maxLen-3] + "..."
 			}
 		}
 	}
 	return trace
-}
-
-func ellipsis(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	if maxLen < 3 {
-		maxLen = 3
-	}
-	return string(runes[0:maxLen-3]) + "..."
 }

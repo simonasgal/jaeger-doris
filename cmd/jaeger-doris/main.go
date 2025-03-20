@@ -30,10 +30,9 @@ const serviceName = "jaeger-doris"
 
 func main() {
 
-	// for debugging only. remove afterwards
-
+	// for debugging only. remove after finished or make it nicer
 	go func() {
-		http.ListenAndServe(":8080", nil)
+		http.ListenAndServe(":9090", nil)
 	}()
 
 	cfg := &internal.Config{}
