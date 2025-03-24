@@ -8,10 +8,9 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/goccy/go-json"
 	"github.com/jaegertracing/jaeger/model"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/opentracing/opentracing-go/ext"
-
 	"go.uber.org/zap"
 )
 
@@ -23,8 +22,6 @@ func traceIDToString(traceID model.TraceID) string {
 }
 
 type mappingFunc func(ctx context.Context, cfg *Config, record map[string]string) error
-
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 func executeQuery(ctx context.Context, db *sql.DB, cfg *Config, query string, f mappingFunc) error {
 	if cfg.Service.TimeoutSecond > 0 {
