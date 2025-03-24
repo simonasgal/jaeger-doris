@@ -276,7 +276,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 					logger.Warn("failed to parse timestamp of event", zap.Error(err))
 					continue
 				}
-				fields := make([]model.KeyValue, 0, len(event.Attributes)+1)
+				fields := make([]model.KeyValue, 1, len(event.Attributes)+1)
 				fields[0] = model.String(SpanLogFieldKeyEvent, event.Name)
 				for k, v := range event.Attributes {
 					fields = append(fields, kvToKeyValue(k, v))
