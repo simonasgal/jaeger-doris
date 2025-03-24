@@ -205,7 +205,9 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	span.Duration = time.Duration(duration * 1000)
 
 	// Tags
-	tags := []model.KeyValue{}
+	var tags []model.KeyValue
+	const spareTagsCount = 4 // space for additional tags
+
 	tagsString := record[schema.SpanAttributes]
 	if tagsString != "" {
 		attributes := make(map[string]any)
@@ -213,10 +215,15 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		if err != nil {
 			logger.Warn("failed to unmarshal span_attributes", zap.Error(err))
 		} else {
+			tags = make([]model.KeyValue, 0, len(attributes)+spareTagsCount) // pre-allocate spare space for additional tags below
 			for k, v := range attributes {
 				tags = append(tags, kvToKeyValue(k, v))
 			}
 		}
+	}
+
+	if len(tags) == 0 {
+		tags = make([]model.KeyValue, 0, spareTagsCount)
 	}
 
 	// Tags.SpanKind
@@ -254,7 +261,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 	span.Tags = tags
 
 	// Logs
-	logs := []model.Log{}
+	var logs []model.Log
 	logsString := record[schema.Events]
 	if logsString != "" {
 		events := []*otelEvent{}
@@ -262,14 +269,15 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		if err != nil {
 			logger.Warn("failed to unmarshal events", zap.Error(err))
 		} else {
+			logs = make([]model.Log, 0, len(events))
 			for _, event := range events {
 				timestamp, err := time.ParseInLocation(timeFormat, event.Timestamp, location)
 				if err != nil {
 					logger.Warn("failed to parse timestamp of event", zap.Error(err))
 					continue
 				}
-				fields := []model.KeyValue{}
-				fields = append(fields, model.String(SpanLogFieldKeyEvent, event.Name))
+				fields := make([]model.KeyValue, 0, len(event.Attributes)+1)
+				fields[0] = model.String(SpanLogFieldKeyEvent, event.Name)
 				for k, v := range event.Attributes {
 					fields = append(fields, kvToKeyValue(k, v))
 				}
@@ -288,7 +296,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		return nil, fmt.Errorf("invalid service_name")
 	}
 
-	processTags := []model.KeyValue{}
+	var processTags []model.KeyValue
 	processTagsString := record[schema.ResourceAttributes]
 	if processTagsString != "" {
 		attributes := make(map[string]any)
@@ -296,6 +304,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		if err != nil {
 			logger.Warn("failed to unmarshal resource_attributes", zap.Error(err))
 		} else {
+			processTags = make([]model.KeyValue, 0, len(attributes))
 			for k, v := range attributes {
 				processTags = append(processTags, kvToKeyValue(k, v))
 			}
