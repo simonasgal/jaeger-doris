@@ -81,21 +81,23 @@ func queryFindTraceIDs(schema *SchemaMapping, tableName string, param *spanstore
 		//
 		// Drop this after "error" tag is treated correctly at the ingestion time
 		// in otelcol-contrib by the doris exporter
-		var q string
-		if k == "error" {
-			q = fmt.Sprintf(
-				`%s['error.msg'] IS NOT NULL`,
-				schema.SpanAttributes,
-			)
+		if k == "error" && v == "true" {
+			predicates = append(predicates,
+				fmt.Sprintf(
+					`((%s['error.msg'] IS NOT NULL) OR (%s == "STATUS_CODE_ERROR"))`,
+					schema.SpanAttributes,
+					schema.StatusCode,
+				))
+
 		} else {
-			q = fmt.Sprintf(
-				`%s['%s'] = '%s'`,
-				schema.SpanAttributes,
-				k,
-				v,
-			)
+			predicates = append(predicates,
+				fmt.Sprintf(
+					`%s['%s'] = '%s'`,
+					schema.SpanAttributes,
+					k,
+					v,
+				))
 		}
-		predicates = append(predicates, q)
 	}
 
 	if param.ServiceName != "" {
