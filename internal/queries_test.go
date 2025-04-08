@@ -53,7 +53,7 @@ func TestQueryFindTraces(t *testing.T) {
 	tableName := "otel2.traces"
 	traceIDs := []string{"01020301000000000000000000000000", "01020301000000000000000000000001"}
 	want := `SELECT * FROM otel2.traces WHERE trace_id IN ('01020301000000000000000000000000','01020301000000000000000000000001')`
-	require.Equal(t, want, queryFindTraces(schema, tableName, traceIDs))
+	require.Equal(t, want, queryFindTraces(schema, tableName, traceIDs, time.Time{}))
 }
 
 func TestQueryFindTraceIDs(t *testing.T) {

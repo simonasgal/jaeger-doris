@@ -53,17 +53,29 @@ func queryGetOperations(schema *SchemaMapping, tableName string, param spanstore
 	return query
 }
 
-func queryFindTraces(schema *SchemaMapping, tableName string, traceIDs []string) string {
+func queryFindTraces(schema *SchemaMapping, tableName string, traceIDs []string, partitionTS time.Time) string {
+	predicates := make([]string, 0, 2)
+
+	// add partitions select timestamp to reduce partitions to scan
+	// truncate to hour boundaries and take back one hour just to be sure we're selecting not too small window.
+	partitionTS = partitionTS.Truncate(time.Hour).Add(-time.Hour)
+	if !partitionTS.IsZero() {
+		predicates = append(predicates,
+			fmt.Sprintf(`(%s >= "%s")`,
+				schema.Timestamp,
+				partitionTS.Format(timestampLayout)),
+		)
+	}
 	for i, traceID := range traceIDs {
 		traceIDs[i] = fmt.Sprintf(`'%s'`, traceID)
 	}
 	traceIDsString := strings.Join(traceIDs, ",")
+	predicates = append(predicates, fmt.Sprintf(`%s IN (%s)`, schema.TraceID, traceIDsString))
 
 	return fmt.Sprintf(
-		`SELECT * FROM %s WHERE %s IN (%s)`,
+		`SELECT * FROM %s WHERE %s`,
 		tableName,
-		schema.TraceID,
-		traceIDsString,
+		strings.Join(predicates, " AND "),
 	)
 }
 
@@ -75,7 +87,7 @@ func queryFindTraceIDs(schema *SchemaMapping, tableName string, param *spanstore
 
 	predicates := make([]string, 0, len(tags)+6)
 	for k, v := range tags {
-		// XXX: work around special case: "error=true" must be treaded separately
+		// XXX: work around special case: "error=true" must be treated separately
 		// since there is no such tag "error", instead there is
 		// string value "error.msg".
 		//

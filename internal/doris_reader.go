@@ -18,6 +18,8 @@ var (
 	_ dependencystore.Reader = (*dorisDependencyReader)(nil)
 )
 
+const timestampLayout = "2006-01-02 15:04:05.000000"
+
 type dorisReader struct {
 	logger *zap.Logger
 	db     *sql.DB
@@ -104,6 +106,9 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 	schema := dr.cfg.Doris.SchemaMapping
 
 	traceIDs := make([]string, 0)
+	// preserve the earliest trace timestamp and use this to limit partitions
+	// needed to scan for tracesIDs
+	var partitionTS time.Time
 
 	f := func(ctx context.Context, cfg *Config, record map[string]string) error {
 		traceID, ok := record[schema.TraceID]
@@ -111,6 +116,18 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 			return fmt.Errorf("invalid trace_id")
 		}
 		traceIDs = append(traceIDs, traceID)
+
+		tss, ok := record["t"]
+		if ok && tss != "" {
+			ts, err := time.Parse(timestampLayout, tss)
+			if err != nil || ts.IsZero() {
+				return nil
+			}
+			if partitionTS.IsZero() || partitionTS.After(ts) {
+				partitionTS = ts
+				return nil
+			}
+		}
 		return nil
 	}
 
@@ -143,7 +160,7 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 		return nil
 	}
 
-	err = executeQuery(ctx, dr.db, dr.cfg, queryFindTraces(schema, dr.cfg.Doris.TableFullName(), traceIDs), f)
+	err = executeQuery(ctx, dr.db, dr.cfg, queryFindTraces(schema, dr.cfg.Doris.TableFullName(), traceIDs, partitionTS), f)
 	if err != nil {
 		return nil, err
 	}
