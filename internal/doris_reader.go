@@ -69,7 +69,8 @@ func (dr *dorisReader) GetServices(ctx context.Context) ([]string, error) {
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryGetServices(schema, dr.cfg.Doris.TableFullName()), f)
+	// err := executeQuery(ctx, dr.db, dr.cfg, queryGetServices(schema, dr.cfg.Doris.TableFullName()), f)
+	err := executeQuery(ctx, dr.db, dr.cfg, queryGetServices(schema, "mv_service_name_async"), f)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +95,8 @@ func (dr *dorisReader) GetOperations(ctx context.Context, query spanstore.Operat
 		return nil
 	}
 
-	err := executeQuery(ctx, dr.db, dr.cfg, queryGetOperations(schema, dr.cfg.Doris.TableFullName(), query), f)
+	err := executeQuery(ctx, dr.db, dr.cfg, queryGetOperations(schema, "mv_service_name_async", query), f)
+	// 	err := executeQuery(ctx, dr.db, dr.cfg, queryGetOperations(schema, dr.cfg.Doris.TableFullName(), query), f)
 	if err != nil {
 		return nil, err
 	}

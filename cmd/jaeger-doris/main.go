@@ -130,6 +130,7 @@ func run(ctx context.Context, cfg *internal.Config) error {
 			ctx = internal.LoggerWithContext(ctx, logger)
 			res, err := handler(ctx, req)
 			if err != nil && err != context.Canceled {
+				fmt.Printf("====== req: %+v\n", req)
 				logger.Error("gRPC interceptor", zap.Error(err))
 			}
 			return res, err

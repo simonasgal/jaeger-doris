@@ -9,6 +9,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/goccy/go-json"
+	// "encoding/json"
 	"github.com/jaegertracing/jaeger/model"
 	"github.com/opentracing/opentracing-go/ext"
 	"go.uber.org/zap"
@@ -37,7 +38,12 @@ func executeQuery(ctx context.Context, db *sql.DB, cfg *Config, query string, f 
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
+		logger.Error("query failed",
+			zap.Duration("duration", time.Since(started).Truncate(time.Millisecond)),
+			zap.String("query", query),
+			zap.Error(err))
 		return err
+
 	}
 	defer rows.Close()
 
@@ -73,13 +79,16 @@ func executeQuery(ctx context.Context, db *sql.DB, cfg *Config, query string, f 
 			} else {
 				vv, ok := (*v).([]byte)
 				if !ok {
-					return fmt.Errorf("invalid column %s", k)
+					//Notice: not sure what for this is
+					// return fmt.Errorf("invalid column \"%s\" (%+v, %v)", k, *v, reflect.TypeOf(*v))
+					// fmt.Printf("==== invalid column \"%s\" (%v, %v)\n", k, *v, reflect.TypeOf(*v))
+					m[k] = fmt.Sprintf("%v", *v)
+
 				} else {
 					m[k] = string(vv)
 				}
 			}
 		}
-
 		err = f(ctx, cfg, m)
 		if err != nil {
 			return err
@@ -199,6 +208,8 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 
 	duration, err := strconv.ParseInt(durationString, 10, 0)
 	if err != nil {
+
+		logger.Error(fmt.Sprintf("failed to parse duration (%#v)", durationString), zap.Error(err))
 		return nil, err
 	}
 
@@ -267,7 +278,7 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		events := []*otelEvent{}
 		err = json.Unmarshal([]byte(logsString), &events)
 		if err != nil {
-			logger.Warn("failed to unmarshal events", zap.Error(err))
+			logger.Warn(fmt.Sprintf("failed to unmarshal events (%+v)", logsString), zap.Error(err))
 		} else {
 			logs = make([]model.Log, 0, len(events))
 			for _, event := range events {
