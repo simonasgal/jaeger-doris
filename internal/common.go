@@ -274,7 +274,10 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 				// XXX: event shouldn't be nil, but it happens in rare occasions.
 				// We should investigate the root cause in the future, but for now we just skip the event to avoid crashing the whole trace.
 				if event == nil {
-					logger.Warn("event is nil")
+					logger.Warn("event is nil",
+						zap.String("service_name", span.Process.ServiceName),
+						zap.String("trace_id", span.TraceID.String()),
+						zap.String("span_id", span.SpanID.String()))
 					continue
 				}
 				timestamp, err := time.ParseInLocation(timeFormat, event.Timestamp, location)
