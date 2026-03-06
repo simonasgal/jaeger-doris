@@ -4,7 +4,7 @@ import (
 	"github.com/jaegertracing/jaeger/model"
 )
 
-const maxLen = 1024
+const maxLen = 65535
 
 func sanitizeTrace(trace *model.Trace) *model.Trace {
 	if trace == nil || len(trace.Spans) == 0 {

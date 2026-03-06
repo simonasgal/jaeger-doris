@@ -271,6 +271,12 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		} else {
 			logs = make([]model.Log, 0, len(events))
 			for _, event := range events {
+				// XXX: event shouldn't be nil, but it happens in rare occasions.
+				// We should investigate the root cause in the future, but for now we just skip the event to avoid crashing the whole trace.
+				if event == nil {
+					logger.Warn("event is nil")
+					continue
+				}
 				timestamp, err := time.ParseInLocation(timeFormat, event.Timestamp, location)
 				if err != nil {
 					logger.Warn("failed to parse timestamp of event", zap.Error(err))
