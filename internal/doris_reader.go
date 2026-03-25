@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	_ "google.golang.org/grpc/encoding/gzip"
 	"time"
+
+	_ "google.golang.org/grpc/encoding/gzip"
 
 	"github.com/jaegertracing/jaeger/model"
 	"github.com/jaegertracing/jaeger/storage/dependencystore"
@@ -38,6 +39,7 @@ func (dr *dorisReader) GetTrace(ctx context.Context, traceID model.TraceID) (*mo
 		if err != nil {
 			dr.logger.Warn("Failed to convert record to span", zap.Error(err))
 		} else {
+			fmt.Printf("=== trace in details: %#v\n", span.Tags[0])
 			trace.Spans = append(trace.Spans, span)
 		}
 

@@ -10,6 +10,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/goccy/go-json"
 	"github.com/jaegertracing/jaeger/model"
+	"github.com/jeremywohl/flatten/v2"
 	"github.com/opentracing/opentracing-go/ext"
 	"go.uber.org/zap"
 )
@@ -215,9 +216,14 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		if err != nil {
 			logger.Warn("failed to unmarshal span_attributes", zap.Error(err))
 		} else {
-			tags = make([]model.KeyValue, 0, len(attributes)+spareTagsCount) // pre-allocate spare space for additional tags below
-			for k, v := range attributes {
-				tags = append(tags, kvToKeyValue(k, v))
+			flat, err := flatten.Flatten(attributes, "", flatten.DotStyle)
+			if err != nil {
+				logger.Warn("failed to flatten span_attributes", zap.Error(err))
+			} else {
+				tags = make([]model.KeyValue, 0, len(flat)+spareTagsCount) // pre-allocate spare space for additional tags below
+				for k, v := range flat {
+					tags = append(tags, kvToKeyValue(k, v))
+				}
 			}
 		}
 	}
@@ -312,9 +318,14 @@ func recordToSpan(ctx context.Context, cfg *Config, record map[string]string) (*
 		if err != nil {
 			logger.Warn("failed to unmarshal resource_attributes", zap.Error(err))
 		} else {
-			processTags = make([]model.KeyValue, 0, len(attributes))
-			for k, v := range attributes {
-				processTags = append(processTags, kvToKeyValue(k, v))
+			flat, err := flatten.Flatten(attributes, "", flatten.DotStyle)
+			if err != nil {
+				logger.Warn("failed to flatten resource_attributes", zap.Error(err))
+			} else {
+				processTags = make([]model.KeyValue, 0, len(flat))
+				for k, v := range flat {
+					processTags = append(processTags, kvToKeyValue(k, v))
+				}
 			}
 		}
 	}

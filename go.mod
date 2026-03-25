@@ -13,6 +13,7 @@ require (
 
 require (
 	github.com/goccy/go-json v0.10.5
+	github.com/jeremywohl/flatten/v2 v2.0.0-20211013061545-07e4a09fb8e4
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
