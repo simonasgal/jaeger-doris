@@ -108,9 +108,9 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 	schema := dr.cfg.Doris.SchemaMapping
 
 	traceIDs := make([]string, 0)
-	// preserve the earliest trace timestamp and use this to limit partitions
-	// needed to scan for tracesIDs
-	var partitionTS time.Time
+	// preserve the earliest and latest trace timestamps and use these to limit
+	// partitions needed to scan when fetching spans by trace_id
+	var minPartitionTS, maxPartitionTS time.Time
 
 	f := func(ctx context.Context, cfg *Config, record map[string]string) error {
 		traceID, ok := record[schema.TraceID]
@@ -119,15 +119,20 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 		}
 		traceIDs = append(traceIDs, traceID)
 
-		tss, ok := record["t"]
-		if ok && tss != "" {
+		if tss, ok := record["t"]; ok && tss != "" {
 			ts, err := time.Parse(timestampLayout, tss)
-			if err != nil || ts.IsZero() {
-				return nil
+			if err == nil && !ts.IsZero() {
+				if minPartitionTS.IsZero() || minPartitionTS.After(ts) {
+					minPartitionTS = ts
+				}
 			}
-			if partitionTS.IsZero() || partitionTS.After(ts) {
-				partitionTS = ts
-				return nil
+		}
+		if tss, ok := record["t_max"]; ok && tss != "" {
+			ts, err := time.Parse(timestampLayout, tss)
+			if err == nil && !ts.IsZero() {
+				if maxPartitionTS.IsZero() || maxPartitionTS.Before(ts) {
+					maxPartitionTS = ts
+				}
 			}
 		}
 		return nil
@@ -162,7 +167,7 @@ func (dr *dorisReader) FindTraces(ctx context.Context, query *spanstore.TraceQue
 		return nil
 	}
 
-	err = executeQuery(ctx, dr.db, dr.cfg, queryFindTraces(schema, dr.cfg.Doris.TableFullName(), traceIDs, partitionTS), f)
+	err = executeQuery(ctx, dr.db, dr.cfg, queryFindTraces(schema, dr.cfg.Doris.TableFullName(), traceIDs, minPartitionTS, maxPartitionTS), f)
 	if err != nil {
 		return nil, err
 	}

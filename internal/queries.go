@@ -53,17 +53,26 @@ func queryGetOperations(schema *SchemaMapping, tableName string, param spanstore
 	return query
 }
 
-func queryFindTraces(schema *SchemaMapping, tableName string, traceIDs []string, partitionTS time.Time) string {
-	predicates := make([]string, 0, 2)
+func queryFindTraces(schema *SchemaMapping, tableName string, traceIDs []string, minPartitionTS, maxPartitionTS time.Time) string {
+	predicates := make([]string, 0, 3)
 
-	// add partitions select timestamp to reduce partitions to scan
-	// truncate to hour boundaries and take back one hour just to be sure we're selecting not too small window.
-	partitionTS = partitionTS.Truncate(time.Hour).Add(-time.Hour)
-	if !partitionTS.IsZero() {
+	// narrow the timestamp window to reduce partitions to scan. partitions are
+	// hourly, so truncate to hour boundaries and pad by one hour on each side
+	// to account for spans that fall slightly outside the discovered range.
+	if !minPartitionTS.IsZero() {
+		minPartitionTS = minPartitionTS.Truncate(time.Hour).Add(-time.Hour)
 		predicates = append(predicates,
 			fmt.Sprintf(`(%s >= "%s")`,
 				schema.Timestamp,
-				partitionTS.Format(timestampLayout)),
+				minPartitionTS.Format(timestampLayout)),
+		)
+	}
+	if !maxPartitionTS.IsZero() {
+		maxPartitionTS = maxPartitionTS.Truncate(time.Hour).Add(time.Hour)
+		predicates = append(predicates,
+			fmt.Sprintf(`(%s <= "%s")`,
+				schema.Timestamp,
+				maxPartitionTS.Format(timestampLayout)),
 		)
 	}
 	for i, traceID := range traceIDs {
@@ -163,8 +172,9 @@ func queryFindTraceIDs(schema *SchemaMapping, tableName string, param *spanstore
 	}
 
 	query := fmt.Sprintf(
-		`SELECT %s, MIN(%s) AS t FROM %s`,
+		`SELECT %s, MIN(%s) AS t, MAX(%s) AS t_max FROM %s`,
 		schema.TraceID,
+		schema.Timestamp,
 		schema.Timestamp,
 		tableName,
 	)

@@ -53,7 +53,13 @@ func TestQueryFindTraces(t *testing.T) {
 	tableName := "otel2.traces"
 	traceIDs := []string{"01020301000000000000000000000000", "01020301000000000000000000000001"}
 	want := `SELECT * FROM otel2.traces WHERE trace_id IN ('01020301000000000000000000000000','01020301000000000000000000000001')`
-	require.Equal(t, want, queryFindTraces(schema, tableName, traceIDs, time.Time{}))
+	require.Equal(t, want, queryFindTraces(schema, tableName, traceIDs, time.Time{}, time.Time{}))
+
+	minTS := time.Date(2024, 1, 1, 1, 30, 0, 0, time.UTC)
+	maxTS := time.Date(2024, 1, 1, 3, 45, 0, 0, time.UTC)
+	traceIDs = []string{"01020301000000000000000000000000", "01020301000000000000000000000001"}
+	want = `SELECT * FROM otel2.traces WHERE (timestamp >= "2024-01-01 00:00:00.000000") AND (timestamp <= "2024-01-01 04:00:00.000000") AND trace_id IN ('01020301000000000000000000000000','01020301000000000000000000000001')`
+	require.Equal(t, want, queryFindTraces(schema, tableName, traceIDs, minTS, maxTS))
 }
 
 func TestQueryFindTraceIDs(t *testing.T) {
@@ -76,7 +82,7 @@ func TestQueryFindTraceIDs(t *testing.T) {
 		NumTraces:    10,
 	}
 
-	first := `SELECT trace_id, MIN(timestamp) AS t FROM otel2.traces WHERE `
+	first := `SELECT trace_id, MIN(timestamp) AS t, MAX(timestamp) AS t_max FROM otel2.traces WHERE `
 	middle_list := []string{
 		"service_name = 'test-service'",
 		"span_name = 'test-operation'",
