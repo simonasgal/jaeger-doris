@@ -38,8 +38,8 @@ func executeQuery(ctx context.Context, db *sql.DB, cfg *Config, query string, f 
 
 	// XXX: create propper session parameters inicialization
 	_, _ = db.Exec(`
-      SET exec_mem_limit= '8GB'; // set memory limit for the query
-      set enable_query_cache=false; // disable query cache until https://github.com/apache/doris/pull/61583 is released
+      --- SET exec_mem_limit= '8GB'; // set memory limit for the query
+      --- set enable_query_cache=false; // disable query cache until https://github.com/apache/doris/pull/61583 is released
       `) // set memory limit for the query
 
 	rows, err := db.QueryContext(ctx, query)

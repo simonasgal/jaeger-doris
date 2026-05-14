@@ -1,4 +1,5 @@
 .vscode/
 .tmp/
 bin/
+jaeger-doris
 config.yaml
